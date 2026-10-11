@@ -1,0 +1,78 @@
+! R2 Configuration - CorporateNet
+! Router: Cisco 2911
+! Hostname: R2
+! OSPF Process: 1, Area: 0, Router-ID: 2.2.2.2
+
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+service password-encryption
+!
+hostname R2
+!
+boot-start-marker
+boot-end-marker
+!
+no aaa new-model
+!
+ip cef
+no ipv6 cef
+!
+ip dhcp excluded-address 10.10.0.193
+ip dhcp excluded-address 10.10.0.225
+!
+ip dhcp pool FIN_POOL
+ network 10.10.0.192 255.255.255.224
+ default-router 10.10.0.193
+ dns-server 8.8.8.8
+ lease 7
+!
+ip dhcp pool HR_POOL
+ network 10.10.0.224 255.255.255.224
+ default-router 10.10.0.225
+ dns-server 8.8.8.8
+ lease 7
+!
+interface GigabitEthernet0/0
+ description Finance LAN
+ ip address 10.10.0.193 255.255.255.224
+ duplex auto
+ speed auto
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description HR LAN
+ ip address 10.10.0.225 255.255.255.224
+ duplex auto
+ speed auto
+ no shutdown
+!
+interface Serial0/0/0
+ description Link to R1
+ ip address 10.10.1.18 255.255.255.252
+ no shutdown
+!
+interface Serial0/0/1
+ description Link to R3
+ ip address 10.10.1.21 255.255.255.252
+ clock rate 2000000
+ no shutdown
+!
+router ospf 1
+ router-id 2.2.2.2
+ passive-interface GigabitEthernet0/0
+ passive-interface GigabitEthernet0/1
+ network 10.10.0.192 0.0.0.31 area 0
+ network 10.10.0.224 0.0.0.31 area 0
+ network 10.10.1.16 0.0.0.3 area 0
+ network 10.10.1.20 0.0.0.3 area 0
+!
+ip classless
+!
+line con 0
+ logging synchronous
+line vty 0 4
+ login
+ transport input ssh
+!
+end

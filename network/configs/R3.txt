@@ -1,0 +1,55 @@
+! R3 Configuration - CorporateNet
+! Router: Cisco 2911
+! Hostname: R3
+! OSPF Process: 1, Area: 0, Router-ID: 3.3.3.3
+
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+service password-encryption
+!
+hostname R3
+!
+boot-start-marker
+boot-end-marker
+!
+no aaa new-model
+!
+ip cef
+no ipv6 cef
+!
+ip dhcp excluded-address 10.10.1.1
+!
+ip dhcp pool IT_POOL
+ network 10.10.1.0 255.255.255.240
+ default-router 10.10.1.1
+ dns-server 8.8.8.8
+ lease 7
+!
+interface GigabitEthernet0/0
+ description IT Support LAN
+ ip address 10.10.1.1 255.255.255.240
+ duplex auto
+ speed auto
+ no shutdown
+!
+interface Serial0/0/0
+ description Link to R2
+ ip address 10.10.1.22 255.255.255.252
+ no shutdown
+!
+router ospf 1
+ router-id 3.3.3.3
+ passive-interface GigabitEthernet0/0
+ network 10.10.1.0 0.0.0.15 area 0
+ network 10.10.1.20 0.0.0.3 area 0
+!
+ip classless
+!
+line con 0
+ logging synchronous
+line vty 0 4
+ login
+ transport input ssh
+!
+end
