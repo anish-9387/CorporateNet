@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface Column<T> {
+type Column<T> = {
   key: string;
   header: string;
   render?: (row: T, index: number) => React.ReactNode;
   className?: string;
-}
+};
 
 interface TableProps<T> {
   columns: Column<T>[];
@@ -35,22 +35,22 @@ export function Table<T>({
   }
 
   return (
-    <div className={`overflow-x-auto scrollbar-thin ${className}`}>
-      <table className={`table ${striped ? 'table-striped' : ''} ${hoverable ? '' : ''}`}>
+    <div className={`overflow-x-auto ${className}`}>
+      <table className={`w-full border-collapse ${striped ? '' : ''}`}>
         <thead>
-          <tr>
+          <tr className="border-b border-slate-200 bg-slate-50">
             {columns.map((col) => (
-              <th key={col.key} className={col.className}>
+              <th key={col.key} className={`px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider ${col.className || ''}`}>
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-200">
           {data.map((row, index) => (
-            <tr key={keyExtractor(row)}>
+            <tr key={keyExtractor(row)} className={hoverable ? 'hover:bg-slate-50' : ''}>
               {columns.map((col) => (
-                <td key={col.key} className={col.className}>
+                <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
                   {col.render ? col.render(row, index) : String((row as Record<string, unknown>)[col.key] ?? '')}
                 </td>
               ))}

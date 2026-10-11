@@ -11,12 +11,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {label && <label htmlFor={inputId} className="label">{label}</label>}
         <input
           ref={ref}
           id={inputId}
-          className={`input ${error ? 'input-error' : ''} ${className}`}
+          className={`w-full px-3 py-2.5 border rounded-lg bg-white text-slate-900 placeholder-slate-400 transition-colors duration-150 ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'} ${className}`}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
           {...props}

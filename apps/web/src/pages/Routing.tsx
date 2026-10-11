@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { designsApi } from '../../api/designs';
-import { NetworkDesign, RoutingInfo, RouteInfo } from '../../types';
-import { Card, CardHeader, Badge, Table, Button } from '../../components/common';
+import { designsApi } from '@/api/designs';
+import { NetworkDesign, RoutingInfo, RouteInfo } from '@/types';
+import { Card, CardHeader, Badge, Table, Button } from '@/components/common';
 
 export const Routing: React.FC = () => {
   const [design, setDesign] = useState<NetworkDesign | null>(null);

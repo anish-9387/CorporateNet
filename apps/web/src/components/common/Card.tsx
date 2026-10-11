@@ -7,8 +7,8 @@ interface CardProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, className = '', padding = 'default' }) => (
-  <div className={`card ${padding === 'none' ? '' : ''} ${className}`}>
-    {padding !== 'none' ? <div className="card-body">{children}</div> : children}
+  <div className={`bg-white border border-slate-200 rounded-xl shadow-sm ${className}`}>
+    {padding !== 'none' ? <div className="p-5">{children}</div> : children}
   </div>
 );
 
@@ -18,7 +18,7 @@ interface CardHeaderProps {
 }
 
 export const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => (
-  <div className={`card-header ${className}`}>{children}</div>
+  <div className={`px-5 py-4 border-b border-slate-200 ${className}`}>{children}</div>
 );
 
 interface CardFooterProps {
@@ -27,5 +27,5 @@ interface CardFooterProps {
 }
 
 export const CardFooter: React.FC<CardFooterProps> = ({ children, className = '' }) => (
-  <div className={`card-footer ${className}`}>{children}</div>
+  <div className={`px-5 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl ${className}`}>{children}</div>
 );

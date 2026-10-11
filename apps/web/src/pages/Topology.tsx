@@ -17,10 +17,10 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { designsApi } from '../../api/designs';
-import { NetworkDesign, Device, Link, TopologyNode, TopologyEdge } from '../../types';
-import { Card } from '../../components/common';
-import { Button } from '../../components/common/Button';
+import { designsApi } from '@/api/designs';
+import { NetworkDesign, Device, Link, TopologyNode, TopologyEdge } from '@/types';
+import { Card } from '@/components/common';
+import { Button } from '@/components/common/Button';
 
 const nodeTypes: NodeTypes = {};
 const edgeTypes: EdgeTypes = {};

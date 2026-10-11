@@ -16,8 +16,8 @@ export const Header: React.FC = () => {
   const pageInfo = pageTitles[location.pathname] ?? { title: 'CorporateNet', description: '' };
 
   return (
-    <header className="sticky top-0 z-30 h-[var(--header-height)] bg-white border-b border-slate-200 flex items-center px-6">
-      <div className="w-[var(--sidebar-width)]" aria-hidden="true" />
+    <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center px-6">
+      <div className="w-64" aria-hidden="true" />
       <div className="flex-1 max-w-7xl mx-auto">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">{pageInfo.title}</h1>

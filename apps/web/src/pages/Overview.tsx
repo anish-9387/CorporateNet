@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { designsApi } from '../../api/designs';
-import { NetworkDesign } from '../../types';
-import { Card, CardHeader, CardFooter, Badge, StatusBadge } from '../../components/common';
-import { Button } from '../../components/common/Button';
+import { designsApi } from '@/api/designs';
+import { NetworkDesign } from '@/types';
+import { Card, CardHeader, CardFooter, Badge, StatusBadge } from '@/components/common';
+import { Button } from '@/components/common/Button';
 
 interface StatCardProps {
   title: string;

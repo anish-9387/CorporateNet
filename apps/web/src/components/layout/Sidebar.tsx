@@ -71,8 +71,8 @@ export const Sidebar: React.FC = () => {
   const location = useLocation();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 w-[var(--sidebar-width)] bg-white border-r border-slate-200 flex flex-col" role="navigation" aria-label="Main navigation">
-      <div className="flex items-center justify-between h-[var(--header-height)] px-6 border-b border-slate-200">
+    <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col" role="navigation" aria-label="Main navigation">
+      <div className="flex items-center justify-between h-16 px-6 border-b border-slate-200">
         <span className="font-semibold text-lg text-slate-900">CorporateNet</span>
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3" aria-label="Sidebar navigation">

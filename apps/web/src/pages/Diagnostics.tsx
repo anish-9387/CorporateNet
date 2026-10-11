@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { designsApi, testsApi } from '../../api';
-import { NetworkDesign, TestRun, TestStatus, EvidenceType, ConnectivityMatrix } from '../../types';
-import { Card, CardHeader, Badge, StatusBadge, Table, Button, Input } from '../../components/common';
+import { designsApi, testsApi } from '@/api';
+import { NetworkDesign, TestRun, TestStatus, EvidenceType, ConnectivityMatrix } from '@/types';
+import { Card, CardHeader, Badge, StatusBadge, Table, Button, Input } from '@/components/common';
 
 const testTypes = ['ping', 'traceroute', 'interface-status', 'ospf-neighbor', 'ospf-route', 'dhcp-lease', 'dhcp-pool'] as const;
 const statuses: TestStatus[] = ['passed', 'failed', 'not-run', 'not-applicable'];
