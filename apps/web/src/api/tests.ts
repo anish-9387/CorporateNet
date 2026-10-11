@@ -17,10 +17,10 @@ export const testsApi = {
         if (value !== undefined) searchParams.append(key, String(value));
       });
     }
-    return api.get<{ tests: TestRun[]; total: number }>(`/designs/tests?${searchParams}`);
+    return api.get<{ tests: TestRun[]; total: number }>(`/tests?${searchParams}`);
   },
 
-  get: (id: string) => api.get<TestRun>(`/designs/tests/${id}`),
+  get: (id: string) => api.get<TestRun>(`/tests/${id}`),
 
   create: (data: {
     designId: string;
@@ -32,11 +32,11 @@ export const testsApi = {
     evidenceType: EvidenceType;
     notes?: string;
     testedAt?: string;
-  }) => api.post<TestRun>('/designs/tests', data),
+  }) => api.post<TestRun>('/tests', data),
 
-  update: (id: string, data: Partial<TestRun>) => api.patch<TestRun>(`/designs/tests/${id}`, data),
+  update: (id: string, data: Partial<TestRun>) => api.patch<TestRun>(`/tests/${id}`, data),
 
-  delete: (id: string) => api.delete<{ deleted: boolean }>(`/designs/tests/${id}`),
+  delete: (id: string) => api.delete<{ deleted: boolean }>(`/tests/${id}`),
 
-  getMatrix: (designId: string) => api.get<ConnectivityMatrix>(`/designs/tests/matrix?designId=${designId}`),
+  getMatrix: (designId: string) => api.get<ConnectivityMatrix>(`/tests/matrix?designId=${designId}`),
 };

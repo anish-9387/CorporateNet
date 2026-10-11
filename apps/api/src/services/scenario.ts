@@ -30,21 +30,21 @@ export const scenarioService = {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid scenario ID format');
     }
-    return ScenarioModel.findById(id).lean();
+    return ScenarioModel.findById(id).lean<IScenario>().exec();
   },
 
   async findByDesignId(designId: string): Promise<IScenario[]> {
     if (!designId.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid design ID format');
     }
-    return ScenarioModel.find({ designId }).sort({ createdAt: -1 }).lean();
+    return ScenarioModel.find({ designId }).sort({ createdAt: -1 }).lean<IScenario[]>().exec();
   },
 
   async update(id: string, input: Partial<CreateScenarioInput>): Promise<IScenario | null> {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid scenario ID format');
     }
-    return ScenarioModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
+    return ScenarioModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean<IScenario>().exec();
   },
 
   async delete(id: string): Promise<boolean> {

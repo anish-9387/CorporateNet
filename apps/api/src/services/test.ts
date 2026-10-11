@@ -41,7 +41,7 @@ export const testService = {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid test ID format');
     }
-    return TestRunModel.findById(id).lean();
+    return TestRunModel.findById(id).lean<ITestRun>().exec();
   },
 
   async findAll(filters: TestFilters = {}): Promise<{ tests: ITestRun[]; total: number }> {
@@ -65,7 +65,7 @@ export const testService = {
     const offset = filters.offset ?? 0;
 
     const [tests, total] = await Promise.all([
-      TestRunModel.find(query).sort({ testedAt: -1 }).skip(offset).limit(limit).lean(),
+      TestRunModel.find(query).sort({ testedAt: -1 }).skip(offset).limit(limit).lean<ITestRun[]>().exec(),
       TestRunModel.countDocuments(query),
     ]);
 
@@ -76,7 +76,7 @@ export const testService = {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid test ID format');
     }
-    return TestRunModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
+    return TestRunModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean<ITestRun>().exec();
   },
 
   async delete(id: string): Promise<boolean> {
@@ -93,9 +93,9 @@ export const testService = {
 
     for (const test of tests) {
       if (!matrix[test.source]) matrix[test.source] = {};
-      matrix[test.source][test.destination] = test.status;
       if (!matrix[test.destination]) matrix[test.destination] = {};
-      matrix[test.destination][test.source] = test.status;
+      (matrix[test.source] as Record<string, TestStatus>)[test.destination] = test.status;
+      (matrix[test.destination] as Record<string, TestStatus>)[test.source] = test.status;
     }
 
     return matrix;

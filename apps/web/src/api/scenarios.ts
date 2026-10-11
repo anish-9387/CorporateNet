@@ -2,9 +2,9 @@ import { api } from './client';
 import type { Scenario } from '../types';
 
 export const scenariosApi = {
-  list: (designId: string) => api.get<Scenario[]>(`/designs/scenarios?designId=${designId}`),
+  list: (designId: string) => api.get<Scenario[]>(`/scenarios?designId=${designId}`),
 
-  get: (id: string) => api.get<Scenario>(`/designs/scenarios/${id}`),
+  get: (id: string) => api.get<Scenario>(`/scenarios/${id}`),
 
   create: (data: {
     designId: string;
@@ -15,9 +15,9 @@ export const scenariosApi = {
     expectedBehavior: string;
     observedBehavior?: string;
     isEducationalSimulation?: boolean;
-  }) => api.post<Scenario>('/designs/scenarios', data),
+  }) => api.post<Scenario>('/scenarios', data),
 
-  update: (id: string, data: Partial<Scenario>) => api.patch<Scenario>(`/designs/scenarios/${id}`, data),
+  update: (id: string, data: Partial<Scenario>) => api.patch<Scenario>(`/scenarios/${id}`, data),
 
-  delete: (id: string) => api.delete<{ deleted: boolean }>(`/designs/scenarios/${id}`),
+  delete: (id: string) => api.delete<{ deleted: boolean }>(`/scenarios/${id}`),
 };

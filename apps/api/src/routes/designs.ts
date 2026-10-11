@@ -3,6 +3,7 @@ import { designService } from '../services/design';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/errorHandler';
 import { successResponse } from '../utils/response';
+import { reportService } from '../services/report';
 import {
   createDesignSchema,
   updateDesignSchema,
@@ -10,7 +11,7 @@ import {
   vlsmCalculateSchema,
 } from './schemas';
 
-const router = Router();
+const router: Router = Router();
 
 router.post(
   '/',
@@ -33,7 +34,8 @@ router.get(
   '/:id',
   validate(designIdSchema),
   asyncHandler(async (req, res) => {
-    const design = await designService.findById(req.params.id);
+    const id = req.params.id!;
+    const design = await designService.findById(id);
     if (!design) {
       res.status(404).json(successResponse(null));
       return;
@@ -46,7 +48,8 @@ router.patch(
   '/:id',
   validate(updateDesignSchema),
   asyncHandler(async (req, res) => {
-    const design = await designService.update(req.params.id, req.body);
+    const id = req.params.id!;
+    const design = await designService.update(id, req.body);
     if (!design) {
       res.status(404).json(successResponse(null));
       return;
@@ -59,7 +62,8 @@ router.delete(
   '/:id',
   validate(designIdSchema),
   asyncHandler(async (req, res) => {
-    const deleted = await designService.delete(req.params.id);
+    const id = req.params.id!;
+    const deleted = await designService.delete(id);
     if (!deleted) {
       res.status(404).json(successResponse(null));
       return;
@@ -81,7 +85,8 @@ router.get(
   '/:id/topology',
   validate(designIdSchema),
   asyncHandler(async (req, res) => {
-    const topology = await designService.getTopology(req.params.id);
+    const id = req.params.id!;
+    const topology = await designService.getTopology(id);
     res.json(successResponse(topology));
   })
 );
@@ -90,7 +95,8 @@ router.get(
   '/:id/routes',
   validate(designIdSchema),
   asyncHandler(async (req, res) => {
-    const routes = await designService.getRoutingInfo(req.params.id);
+    const id = req.params.id!;
+    const routes = await designService.getRoutingInfo(id);
     res.json(successResponse(routes));
   })
 );
@@ -99,16 +105,16 @@ router.get(
   '/:id/report',
   validate(designIdSchema),
   asyncHandler(async (req, res) => {
-    const { reportService } = await import('../services/report');
+    const id = req.params.id!;
     const format = req.query.format as string;
     if (format === 'markdown') {
-      const markdown = await reportService.exportMarkdown(req.params.id);
+      const markdown = await reportService.exportMarkdown(id);
       res.setHeader('Content-Type', 'text/markdown');
-      res.setHeader('Content-Disposition', `attachment; filename="report-${req.params.id}.md"`);
+      res.setHeader('Content-Disposition', `attachment; filename="report-${id}.md"`);
       res.send(markdown);
       return;
     }
-    const report = await reportService.generate(req.params.id);
+    const report = await reportService.generate(id);
     res.json(successResponse(report));
   })
 );

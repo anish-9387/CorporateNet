@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { successResponse } from '../utils/response';
 import { createScenarioSchema, scenarioIdSchema, designIdSchema } from './schemas';
 
-const router = Router();
+const router: Router = Router();
 
 router.post(
   '/',
@@ -29,7 +29,8 @@ router.get(
   '/:id',
   validate(scenarioIdSchema),
   asyncHandler(async (req, res) => {
-    const scenario = await scenarioService.findById(req.params.id);
+    const id = req.params.id!;
+    const scenario = await scenarioService.findById(id);
     if (!scenario) {
       res.status(404).json(successResponse(null));
       return;
@@ -42,7 +43,8 @@ router.patch(
   '/:id',
   validate(scenarioIdSchema),
   asyncHandler(async (req, res) => {
-    const scenario = await scenarioService.update(req.params.id, req.body);
+    const id = req.params.id!;
+    const scenario = await scenarioService.update(id, req.body);
     if (!scenario) {
       res.status(404).json(successResponse(null));
       return;
@@ -55,7 +57,8 @@ router.delete(
   '/:id',
   validate(scenarioIdSchema),
   asyncHandler(async (req, res) => {
-    const deleted = await scenarioService.delete(req.params.id);
+    const id = req.params.id!;
+    const deleted = await scenarioService.delete(id);
     if (!deleted) {
       res.status(404).json(successResponse(null));
       return;

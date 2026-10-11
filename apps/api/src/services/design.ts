@@ -8,9 +8,15 @@ export interface CreateDesignInput {
   parentCidr: string;
   departments: Omit<IDepartment, 'networkCidr' | 'gateway' | 'subnetMask'>[];
   devices: Omit<IDevice, 'deviceId'>[];
-  interfaces: Omit<IInterface, 'deviceId'>[];
+  interfaces: IInterface[];
   links: Omit<ILink, 'linkId'>[];
   ospf: IOspf;
+}
+
+export interface CreateDesignInputWithIds extends CreateDesignInput {
+  devices: IDevice[];
+  interfaces: IInterface[];
+  links: ILink[];
 }
 
 export interface UpdateDesignInput {
@@ -88,11 +94,11 @@ export const designService = {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid design ID format');
     }
-    return NetworkDesignModel.findById(id).lean();
+    return NetworkDesignModel.findById(id).lean<INetworkDesign>().exec();
   },
 
   async findAll(): Promise<INetworkDesign[]> {
-    return NetworkDesignModel.find().sort({ createdAt: -1 }).lean();
+    return NetworkDesignModel.find().sort({ createdAt: -1 }).lean<INetworkDesign[]>().exec();
   },
 
   async update(id: string, input: UpdateDesignInput): Promise<INetworkDesign | null> {
@@ -122,7 +128,7 @@ export const designService = {
       });
     }
 
-    return NetworkDesignModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true }).lean();
+    return NetworkDesignModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true }).lean<INetworkDesign>().exec();
   },
 
   async delete(id: string): Promise<boolean> {

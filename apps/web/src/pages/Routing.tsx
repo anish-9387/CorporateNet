@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { designsApi } from '@/api/designs';
-import { NetworkDesign, RoutingInfo, RouteInfo } from '@/types';
-import { Card, CardHeader, Badge, Table, Button } from '@/components/common';
+import { NetworkDesign, RoutingInfo } from '@/types';
+import { Card, CardHeader, CardFooter, Badge, Table } from '@/components/common';
 
 export const Routing: React.FC = () => {
   const [design, setDesign] = useState<NetworkDesign | null>(null);
@@ -78,9 +78,9 @@ export const Routing: React.FC = () => {
       </div>
 
       {activeTab === 'overview' && <OverviewTab design={design} routing={routing} />}
-      {activeTab === 'neighbors' && <NeighborsTab design={design} routing={routing} />}
+      {activeTab === 'neighbors' && <NeighborsTab />}
       {activeTab === 'routes' && <RoutesTab design={design} routing={routing} />}
-      {activeTab === 'evidence' && <EvidenceTab design={design} />}
+      {activeTab === 'evidence' && <EvidenceTab />}
     </div>
   );
 };
@@ -152,7 +152,7 @@ function OverviewTab({ design, routing }: { design: NetworkDesign; routing: Rout
   );
 }
 
-function NeighborsTab({ design, routing }: { design: NetworkDesign; routing: RoutingInfo }) {
+function NeighborsTab() {
   const neighbors = [
     { router: 'R1', neighbor: 'R2', interface: 'S0/0/0', state: 'FULL', address: '10.10.1.18', deadTime: '00:00:32' },
     { router: 'R2', neighbor: 'R1', interface: 'S0/0/0', state: 'FULL', address: '10.10.1.17', deadTime: '00:00:35' },
@@ -242,7 +242,7 @@ function RoutesTab({ design, routing }: { design: NetworkDesign; routing: Routin
             { key: 'source', header: 'Source' },
           ]}
           data={allRoutes}
-          keyExtractor={(row, i) => `${row.network}-${row.code}-${i}`}
+          keyExtractor={(row) => `${row.network}-${row.code}`}
           striped
         />
       </div>
@@ -256,7 +256,7 @@ function RoutesTab({ design, routing }: { design: NetworkDesign; routing: Routin
   );
 }
 
-function EvidenceTab({ design }: { design: NetworkDesign }) {
+function EvidenceTab() {
   const evidence = [
     { router: 'R1', command: 'show ip ospf neighbor', output: 'Neighbor ID     Pri  State       Dead Time   Address         Interface\n2.2.2.2         1    FULL/DR      00:00:32    10.10.1.18      Serial0/0/0', verified: true },
     { router: 'R1', command: 'show ip route ospf', output: 'O    10.10.0.128/26 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.0.192/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.0.224/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.0/28 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.20/30 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0', verified: true },

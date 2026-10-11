@@ -17,9 +17,9 @@ export const reportService = {
     }
 
     const [design, tests, scenarios] = await Promise.all([
-      NetworkDesignModel.findById(designId).lean(),
-      TestRunModel.find({ designId }).sort({ testedAt: -1 }).lean(),
-      ScenarioModel.find({ designId }).sort({ createdAt: -1 }).lean(),
+      NetworkDesignModel.findById(designId).lean<INetworkDesign>().exec(),
+      TestRunModel.find({ designId }).sort({ testedAt: -1 }).lean<ITestRun[]>().exec(),
+      ScenarioModel.find({ designId }).sort({ createdAt: -1 }).lean<IScenario[]>().exec(),
     ]);
 
     if (!design) {
@@ -50,7 +50,8 @@ export const reportService = {
     markdown += `| Department | Hosts | Network | Gateway | Subnet Mask | Usable |\n`;
     markdown += `|------------|-------|---------|---------|-------------|--------|\n`;
     for (const dept of design.departments) {
-      markdown += `| ${dept.name} | ${dept.hostRequirement} | ${dept.networkCidr} | ${dept.gateway} | ${dept.subnetMask} | ${(1 << (32 - parseInt(dept.networkCidr.split('/')[1]))) - 2} |\n`;
+      const prefix = dept.networkCidr.split('/')[1] ?? '24';
+      markdown += `| ${dept.name} | ${dept.hostRequirement} | ${dept.networkCidr} | ${dept.gateway} | ${dept.subnetMask} | ${(1 << (32 - parseInt(prefix))) - 2} |\n`;
     }
     markdown += `\n`;
 

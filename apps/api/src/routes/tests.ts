@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { successResponse } from '../utils/response';
 import { createTestSchema, testFiltersSchema, testIdSchema } from './schemas';
 
-const router = Router();
+const router: Router = Router();
 
 router.post(
   '/',
@@ -43,7 +43,8 @@ router.get(
   '/:id',
   validate(testIdSchema),
   asyncHandler(async (req, res) => {
-    const test = await testService.findById(req.params.id);
+    const id = req.params.id!;
+    const test = await testService.findById(id);
     if (!test) {
       res.status(404).json(successResponse(null));
       return;
@@ -56,7 +57,8 @@ router.patch(
   '/:id',
   validate(testIdSchema),
   asyncHandler(async (req, res) => {
-    const test = await testService.update(req.params.id, req.body);
+    const id = req.params.id!;
+    const test = await testService.update(id, req.body);
     if (!test) {
       res.status(404).json(successResponse(null));
       return;
@@ -69,7 +71,8 @@ router.delete(
   '/:id',
   validate(testIdSchema),
   asyncHandler(async (req, res) => {
-    const deleted = await testService.delete(req.params.id);
+    const id = req.params.id!;
+    const deleted = await testService.delete(id);
     if (!deleted) {
       res.status(404).json(successResponse(null));
       return;

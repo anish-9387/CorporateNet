@@ -7,14 +7,38 @@ const startServer = async (): Promise<void> => {
   try {
     await connectDatabase();
 
-    const server = app.listen(config.port, () => {
-      logger.info({ port: config.port, env: config.nodeEnv }, 'Server started');
+    const host = process.env.HOST ?? '0.0.0.0';
+    const server = app.listen(config.port, host, () => {
+      logger.info({ port: config.port, host, env: config.nodeEnv }, 'Server started');
+    });
+
+    server.on('error', (err) => {
+      logger.error({ err }, 'Server error');
+    });
+
+    server.on('listening', () => {
+      const address = server.address();
+      logger.info({ address }, 'Server is listening');
+    });
+
+    server.on('close', () => {
+      logger.info('Server closed');
+    });
+
+    // Handle unhandled rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error({ reason, promise }, 'Unhandled Rejection');
+    });
+
+    process.on('uncaughtException', (error) => {
+      logger.error({ err: error }, 'Uncaught Exception');
+      process.exit(1);
     });
 
     const shutdown = async (signal: string) => {
       logger.info({ signal }, 'Shutting down');
       server.close(async () => {
-        await import('./utils/database').then(({ disconnectDatabase }) => disconnectDatabase());
+        await import('./utils/database.js').then(({ disconnectDatabase }) => disconnectDatabase());
         process.exit(0);
       });
 

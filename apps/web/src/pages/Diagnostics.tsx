@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { designsApi, testsApi } from '@/api';
 import { NetworkDesign, TestRun, TestStatus, EvidenceType, ConnectivityMatrix } from '@/types';
-import { Card, CardHeader, Badge, StatusBadge, Table, Button, Input } from '@/components/common';
+import { Card, CardHeader, Badge, StatusBadge, Button, Input } from '@/components/common';
 
-const testTypes = ['ping', 'traceroute', 'interface-status', 'ospf-neighbor', 'ospf-route', 'dhcp-lease', 'dhcp-pool'] as const;
 const statuses: TestStatus[] = ['passed', 'failed', 'not-run', 'not-applicable'];
 const evidenceTypes: EvidenceType[] = ['packet-tracer-cli', 'packet-tracer-ping', 'manual', 'simulated'];
 
@@ -174,10 +173,10 @@ export const Diagnostics: React.FC = () => {
         <CardHeader className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Test Checklist</h2>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((t, i) => saveTest(i, 'passed', 'manual', 'Bulk pass'))}>
+            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((_t, i) => saveTest(i, 'passed', 'manual', 'Bulk pass'))}>
               Mark All Passed
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((t, i) => saveTest(i, 'not-run', 'manual', 'Bulk reset'))}>
+            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((_t, i) => saveTest(i, 'not-run', 'manual', 'Bulk reset'))}>
               Reset All
             </Button>
           </div>
@@ -185,7 +184,7 @@ export const Diagnostics: React.FC = () => {
         <div className="card-body p-0">
           <div className="divide-y divide-slate-100">
             {defaultTests.map((test, index) => {
-              const existingTest = tests.find((t) => t.source === test.source && t.destination === test.destination && t.testType === test.testType);
+              const existingTest = tests.find((_t) => _t.source === test.source && _t.destination === test.destination && _t.testType === test.testType);
               const currentStatus = existingTest?.status ?? 'not-run';
               const currentEvidence = existingTest?.evidenceType ?? 'manual';
               const currentNotes = existingTest?.notes ?? '';

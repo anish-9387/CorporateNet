@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { designsApi, scenariosApi } from '@/api';
 import { NetworkDesign, Scenario } from '@/types';
-import { Card, CardHeader, CardFooter, Badge, StatusBadge, Table, Button, Input } from '@/components/common';
+import { Card, CardHeader, CardFooter, Badge, StatusBadge, Button, Input } from '@/components/common';
 
 interface ScenarioFormData {
   name: string;

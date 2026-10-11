@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { designsApi, reportService } from '@/api';
-import { NetworkDesign, TestRun, Scenario, ReportData } from '@/types';
+import { NetworkDesign, ReportData } from '@/types';
 import { Card, CardHeader, Badge, StatusBadge, Table, Button } from '@/components/common';
 
 export const Reports: React.FC = () => {

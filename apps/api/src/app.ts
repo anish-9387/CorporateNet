@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -11,7 +11,7 @@ import designsRouter from './routes/designs';
 import testsRouter from './routes/tests';
 import scenariosRouter from './routes/scenarios';
 
-const app = express();
+const app: Express = express();
 
 app.use(helmet());
 app.use(cors({ origin: config.webOrigin, credentials: true }));
@@ -32,8 +32,8 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 app.use('/api/v1/designs', designsRouter);
-app.use('/api/v1/designs', testsRouter);
-app.use('/api/v1/designs', scenariosRouter);
+app.use('/api/v1/tests', testsRouter);
+app.use('/api/v1/scenarios', scenariosRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

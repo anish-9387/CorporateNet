@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { designsApi } from '@/api/designs';
 import { VLSMInput, VLSMResult, VLSMCalculationResponse, NetworkDesign } from '@/types';
-import { Card, CardHeader, CardFooter, Badge, Input, Button, Table } from '@/components/common';
+import { Card, CardHeader, Badge, Input, Button, Table } from '@/components/common';
 
 const defaultDepartments: VLSMInput[] = [
   { name: 'Engineering', hostCount: 100 },
