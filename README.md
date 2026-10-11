@@ -250,7 +250,3 @@ VITE_API_BASE_URL=http://localhost:4000/api/v1
 - [ ] Project report
 - [ ] 10-12 slide presentation
 - [ ] README with installation steps
-
-## License
-
-Educational project for course 21CSC302J — Computer Networks
