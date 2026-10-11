@@ -164,7 +164,7 @@ Packet Tracer (.pkt) ──► Manual Config Export ──► Shared Dataset ─
 ### Development
 ```bash
 npm run dev          # Concurrent API + Web
-npm run dev:api      # API only (port 4000)
+npm run dev:api      # API only (port 3000)
 npm run dev:web      # Web only (port 5173)
 ```
 
@@ -178,7 +178,7 @@ npm run start        # Start API (requires built dist/)
 - `NODE_ENV=production`
 - `MONGODB_URI` — MongoDB Atlas or managed instance
 - `WEB_ORIGIN` — Production frontend URL
-- `PORT` — API port (default 4000)
+- `PORT` — API port (default 3000)
 
 ---
 

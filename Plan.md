@@ -488,7 +488,7 @@ Example backend `.env`:
 
 ``` dotenv
 NODE_ENV=development
-PORT=4000
+PORT=3000
 MONGODB_URI=mongodb://127.0.0.1:27017/corporatenet
 WEB_ORIGIN=http://localhost:5173
 ```
@@ -496,7 +496,7 @@ WEB_ORIGIN=http://localhost:5173
 Example frontend `.env`:
 
 ``` dotenv
-VITE_API_BASE_URL=http://localhost:4000/api/v1
+VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
 Rules: - Commit `.env.example`, not `.env`. - Never expose `MONGODB_URI`

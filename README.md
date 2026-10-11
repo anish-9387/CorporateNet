@@ -76,8 +76,8 @@ npm run dev
 ### Access Points
 
 - **Frontend**: http://localhost:5173
-- **API**: http://localhost:4000/api/v1
-- **Health Check**: http://localhost:4000/api/v1/health
+- **API**: http://localhost:3000/api/v1
+- **Health Check**: http://localhost:3000/api/v1/health
 
 ## Project Structure
 
@@ -214,7 +214,7 @@ Save outputs as evidence in `network/evidence/`.
 
 ```env
 NODE_ENV=development
-PORT=4000
+PORT=3000
 MONGODB_URI=mongodb://127.0.0.1:27017/corporatenet
 WEB_ORIGIN=http://localhost:5173
 RATE_LIMIT_WINDOW_MS=900000
@@ -224,7 +224,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 ### Frontend (`apps/web/.env`)
 
 ```env
-VITE_API_BASE_URL=http://localhost:4000/api/v1
+VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
 ## Security Notes
