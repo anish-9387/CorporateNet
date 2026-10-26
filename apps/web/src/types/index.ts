@@ -16,6 +16,7 @@ export interface NetworkDesign {
 export interface Department {
   name: string;
   hostRequirement: number;
+  reservedCapacity?: number;
   networkCidr: string;
   gateway: string;
   subnetMask: string;

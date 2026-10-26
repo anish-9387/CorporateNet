@@ -54,6 +54,10 @@ function cidrToWildcard(prefix: number): string {
 }
 
 function parseCidr(cidr: string): { address: number; prefix: number } {
+  if (!/^\d{1,3}(\.\d{1,3}){3}\/(\d|[12]\d|3[0-2])$/.test(cidr) ||
+      cidr.split('/')[0]!.split('.').some((octet) => Number(octet) > 255)) {
+    throw new Error('Invalid IPv4 CIDR');
+  }
   const [ip, prefixStr] = cidr.split('/');
   if (!ip || !prefixStr) {
     throw new Error('Invalid CIDR format');
@@ -66,24 +70,18 @@ function parseCidr(cidr: string): { address: number; prefix: number } {
 }
 
 function calculateRequiredPrefix(hostCount: number): number {
-  const required = hostCount + 2;
-  let hostBits = 0;
-  while ((1 << hostBits) < required) {
-    hostBits++;
-  }
-  return 32 - hostBits;
+  return 32 - Math.max(2, Math.ceil(Math.log2(hostCount + 2)));
 }
 
 function getNetworkAddress(address: number, prefix: number): number {
   if (prefix === 0) return 0;
   const mask = (~0 << (32 - prefix)) >>> 0;
-  return address & mask;
+  return (address & mask) >>> 0;
 }
 
 function getBroadcastAddress(networkAddress: number, prefix: number): number {
   if (prefix === 32) return networkAddress;
-  const hostMask = (1 << (32 - prefix)) - 1;
-  return networkAddress | hostMask;
+  return networkAddress + 2 ** (32 - prefix) - 1;
 }
 
 export function calculateVLSM(
@@ -111,8 +109,18 @@ export function calculateVLSM(
   }
 
   const parentBroadcast = getBroadcastAddress(parentNetwork, parentPrefix);
-  const totalHostBits = 32 - parentPrefix;
-  const maxAddresses = 1 << totalHostBits;
+  const names = new Set<string>();
+  for (const input of inputs) {
+    if (!input.name.trim() || names.has(input.name.trim())) errors.push('Subnet names must be nonempty and unique');
+    names.add(input.name.trim());
+    if (!Number.isSafeInteger(input.hostCount) || input.hostCount < 1 ||
+        !Number.isSafeInteger(input.reservedCapacity ?? 0) || (input.reservedCapacity ?? 0) < 0 ||
+        input.hostCount + (input.reservedCapacity ?? 0) > 2 ** 32 - 2) {
+      errors.push(`Invalid host requirement for ${input.name}`);
+    }
+  }
+  if (inputs.length === 0) errors.push('At least one subnet is required');
+  if (errors.length) return { parentNetwork: numberToIp(parentNetwork), parentPrefix, subnets: [], remainingAddressSpace: [], isValid: false, errors };
 
   const sortedInputs = [...inputs].sort((a, b) => {
     const aTotal = a.hostCount + (a.reservedCapacity ?? 0);
@@ -122,14 +130,13 @@ export function calculateVLSM(
 
   const results: SubnetResult[] = [];
   let currentAddress = parentNetwork;
-  let usedAddresses = 0;
 
   for (const input of sortedInputs) {
     const totalRequired = input.hostCount + (input.reservedCapacity ?? 0) + 2;
     const prefix = calculateRequiredPrefix(totalRequired - 2);
-    const subnetSize = 1 << (32 - prefix);
+    const subnetSize = 2 ** (32 - prefix);
 
-    const networkAddress = getNetworkAddress(currentAddress, prefix);
+    const networkAddress = Math.ceil(currentAddress / subnetSize) * subnetSize;
 
     if (networkAddress < parentNetwork || networkAddress > parentBroadcast) {
       errors.push(`Subnet ${input.name} exceeds parent network boundary`);
@@ -157,7 +164,7 @@ export function calculateVLSM(
 
     const firstUsable = networkAddress + 1;
     const lastUsable = broadcast - 1;
-    const usableAddresses = (1 << (32 - prefix)) - 2;
+    const usableAddresses = subnetSize - 2;
     const utilization = ((input.hostCount / usableAddresses) * 100);
 
     results.push({
@@ -171,22 +178,22 @@ export function calculateVLSM(
       firstUsable: numberToIp(firstUsable),
       lastUsable: numberToIp(lastUsable),
       broadcast: numberToIp(broadcast),
-      totalAddresses: 1 << (32 - prefix),
+      totalAddresses: subnetSize,
       usableAddresses,
       reservedCapacity: input.reservedCapacity,
       utilizationPercent: Math.round(utilization * 100) / 100,
     });
 
     currentAddress = broadcast + 1;
-    usedAddresses += subnetSize;
   }
 
   const remaining: string[] = [];
   let remainingStart = currentAddress;
   while (remainingStart <= parentBroadcast) {
-    const remainingPrefix = calculateRequiredPrefix(parentBroadcast - remainingStart + 1);
-    const remainingSize = 1 << (32 - remainingPrefix);
-    if (remainingStart + remainingSize - 1 > parentBroadcast) break;
+    let bits = Math.floor(Math.log2(parentBroadcast - remainingStart + 1));
+    while (remainingStart % 2 ** bits !== 0) bits--;
+    const remainingPrefix = 32 - bits;
+    const remainingSize = 2 ** bits;
     remaining.push(`${numberToIp(remainingStart)}/${remainingPrefix}`);
     remainingStart += remainingSize;
   }
@@ -221,6 +228,13 @@ export function validateSubnetAllocation(
   const parentBroadcast = getBroadcastAddress(parentNetwork, parentPrefix);
 
   for (const subnet of subnets) {
+    try {
+      const parsed = parseCidr(`${subnet.networkAddress}/${subnet.prefix}`);
+      if (getNetworkAddress(parsed.address, parsed.prefix) !== parsed.address) throw new Error('Unaligned network');
+    } catch {
+      errors.push(`Invalid subnet ${subnet.name}`);
+      continue;
+    }
     const networkAddr = ipToNumber(subnet.networkAddress);
     const broadcast = getBroadcastAddress(networkAddr, subnet.prefix);
 
@@ -229,7 +243,7 @@ export function validateSubnetAllocation(
     }
 
     for (const other of subnets) {
-      if (other.name === subnet.name) continue;
+      if (other === subnet) continue;
       const otherNet = ipToNumber(other.networkAddress);
       const otherBroadcast = getBroadcastAddress(otherNet, other.prefix);
       if (

@@ -49,6 +49,9 @@ describe('Design Service', () => {
     expect(design.departments[0].networkCidr).toBeDefined();
     expect(design.departments[0].gateway).toBeDefined();
     expect(design.departments[0].subnetMask).toBeDefined();
+    expect(design.interfaces[0].deviceId).toBe(design.devices[0].deviceId);
+    expect(design.links[0].sourceDeviceId).toBe(design.devices[0].deviceId);
+    expect(design.links[0].targetDeviceId).toBe(design.devices[1].deviceId);
   });
 
   it('finds design by ID', async () => {
@@ -69,7 +72,7 @@ describe('Design Service', () => {
   });
 
   it('updates design and recalculates VLSM', async () => {
-    const created = await designService.create(testDesign);
+    const created = await designService.create({ ...testDesign, interfaces: [], links: [] });
     const updated = await designService.update(created._id.toString(), {
       parentCidr: '10.0.0.0/23',
       departments: [
@@ -82,6 +85,12 @@ describe('Design Service', () => {
     expect(updated).toBeDefined();
     expect(updated?.departments).toHaveLength(3);
     expect(updated?.parentCidr).toBe('10.0.0.0/23');
+  });
+
+  it('prevents subnet changes from silently leaving connected interfaces on old networks', async () => {
+    const created = await designService.create(testDesign);
+    await expect(designService.update(created._id.toString(), { parentCidr: '192.168.0.0/24' })).rejects.toThrow('updated interfaces and links');
+    expect((await designService.findById(created._id.toString()))?.parentCidr).toBe('10.0.0.0/24');
   });
 
   it('deletes design', async () => {

@@ -12,6 +12,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
+  if (err instanceof SyntaxError && 'status' in err && err.status === 400) {
+    res.status(400).json(errorResponse('BAD_REQUEST', 'Invalid JSON body'));
+    return;
+  }
   if (err instanceof ZodError) {
     const details = err.errors.map((e) => ({
       field: e.path.join('.'),

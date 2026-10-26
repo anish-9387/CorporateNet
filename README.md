@@ -2,11 +2,15 @@
 
 Scalable Corporate Network using VLSM and OSPF — Network Intelligence Dashboard
 
+**Run the seeded demo:** `npm install`, then `npm run demo`, then open http://localhost:5173. No separately installed MongoDB is needed; demo data is temporary. The first launch downloads a MongoDB binary.
+
+See [Run and demonstrate the simulation](docs/run-and-simulate.md) for PowerShell commands, persistent setup, browser tests, and the Packet Tracer walkthrough. See [Test results](docs/test-results.md) for the checks performed on this revision.
+
 ## Overview
 
 CorporateNet is a computer networking project demonstrating Variable Length Subnet Masking (VLSM), OSPF dynamic routing, DHCP, and IPv4 addressing across a simulated corporate topology. The project includes:
 
-- **Cisco Packet Tracer simulation** (`.pkt` file) with 3 routers, 5 departments, and validated configurations
+- **Cisco Packet Tracer configuration files** for 3 routers and 5 departments; a `.pkt` file and captured hardware evidence are not included
 - **Web-based Network Intelligence Dashboard** (Vite + React + TypeScript) for interactive exploration
 - **REST API** (Node.js + Express + TypeScript) with MongoDB persistence
 - **VLSM Calculator** with visual subnet allocation
@@ -151,13 +155,13 @@ CorporateNet/
 - Device nodes with interface details
 - Link selection with network information
 - Legend and minimap navigation
-- Demo mode indicator
+- Animated path simulation, pause/resume, speed controls, and link failure / recovery
 
 ### Routing Lab (`/routing`)
 - OSPF configuration overview
-- Neighbor adjacency table (from Packet Tracer evidence)
+- Expected neighbor adjacencies derived from the saved design
 - Expected route table with codes (C/O)
-- CLI evidence viewer with verification badges
+- Illustrative CLI examples clearly separated from verified evidence
 
 ### Diagnostics (`/diagnostics`)
 - Connectivity matrix (department-to-department)

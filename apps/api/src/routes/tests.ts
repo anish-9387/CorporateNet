@@ -3,7 +3,8 @@ import { testService } from '../services/test';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/errorHandler';
 import { successResponse } from '../utils/response';
-import { createTestSchema, testFiltersSchema, testIdSchema } from './schemas';
+import { createTestSchema, testFiltersSchema, testIdSchema, updateTestSchema } from './schemas';
+import { AppError } from '../utils/errors';
 
 const router: Router = Router();
 
@@ -21,7 +22,7 @@ router.get(
   validate(testFiltersSchema),
   asyncHandler(async (req, res) => {
     const result = await testService.findAll(req.query as Record<string, string>);
-    res.json(successResponse(result.tests, { total: result.total }));
+    res.json(successResponse(result));
   })
 );
 
@@ -31,8 +32,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const designId = req.query.designId as string;
     if (!designId) {
-      res.status(400).json(successResponse(null));
-      return;
+      throw AppError.badRequest('designId is required');
     }
     const matrix = await testService.getConnectivityMatrix(designId);
     res.json(successResponse(matrix));
@@ -46,8 +46,7 @@ router.get(
     const id = req.params.id!;
     const test = await testService.findById(id);
     if (!test) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse(test));
   })
@@ -55,13 +54,12 @@ router.get(
 
 router.patch(
   '/:id',
-  validate(testIdSchema),
+  validate(updateTestSchema),
   asyncHandler(async (req, res) => {
     const id = req.params.id!;
     const test = await testService.update(id, req.body);
     if (!test) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse(test));
   })
@@ -74,11 +72,11 @@ router.delete(
     const id = req.params.id!;
     const deleted = await testService.delete(id);
     if (!deleted) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse({ deleted: true }));
   })
 );
 
 export default router;
+

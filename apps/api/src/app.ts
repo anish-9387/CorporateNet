@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { config } from './config';
-import { connectDatabase } from './utils/database';
-import { logger } from './utils/logger';
+import { designService } from './services/design';
+import { validate } from './middleware/validate';
+import { vlsmCalculateSchema } from './routes/schemas';
+import { asyncHandler } from './middleware/errorHandler';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { successResponse } from './utils/response';
 import designsRouter from './routes/designs';
@@ -32,6 +34,9 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 app.use('/api/v1/designs', designsRouter);
+app.post('/api/v1/vlsm/calculate', validate(vlsmCalculateSchema), asyncHandler(async (req, res) => {
+  res.json(successResponse(await designService.calculateVLSM(req.body.parentCidr, req.body.departments)));
+}));
 app.use('/api/v1/tests', testsRouter);
 app.use('/api/v1/scenarios', scenariosRouter);
 

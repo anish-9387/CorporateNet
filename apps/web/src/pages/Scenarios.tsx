@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { designsApi, scenariosApi } from '@/api';
 import { NetworkDesign, Scenario } from '@/types';
-import { Card, CardHeader, CardFooter, Badge, StatusBadge, Button, Input } from '@/components/common';
+import { Card, CardHeader, CardFooter, Badge, Button, Input } from '@/components/common';
 
 interface ScenarioFormData {
   name: string;
@@ -52,6 +53,7 @@ export const Scenarios: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!design) return;
+    setError(null);
 
     try {
       if (editingScenario) {
@@ -114,7 +116,7 @@ export const Scenarios: React.FC = () => {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
   }
 
-  if (error) {
+  if (error && !design) {
     return <Card><div className="p-6 text-center text-red-600">Error: {error}</div></Card>;
   }
 
@@ -126,7 +128,8 @@ export const Scenarios: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {error && <div role="alert" className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Failure Scenarios</h2>
           <p className="text-sm text-slate-500">Simulate link failures and analyze impact</p>
@@ -143,10 +146,17 @@ export const Scenarios: React.FC = () => {
           </CardHeader>
           <form onSubmit={handleSubmit} className="card-body space-y-4">
             <Input label="Scenario Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-            <Input label="Failed Link ID" value={formData.failedLinkId} onChange={(e) => setFormData({ ...formData, failedLinkId: e.target.value })} placeholder="e.g., link-r1-r2" required />
+            <div>
+              <label className="label" htmlFor="failed-link">Failed Link</label>
+              <select id="failed-link" className="input mt-2" required value={formData.failedLinkId} onChange={(e) => setFormData({ ...formData, failedLinkId: e.target.value })}>
+                <option value="">Select a link</option>
+                {design.links.map((link) => <option key={link.linkId} value={link.linkId}>{design.devices.find((d) => d.deviceId === link.sourceDeviceId)?.hostname} ↔ {design.devices.find((d) => d.deviceId === link.targetDeviceId)?.hostname} · {link.networkCidr}</option>)}
+              </select>
+            </div>
             <div className="flex flex-col gap-2">
-              <label className="label">Affected Networks (comma-separated)</label>
+              <label htmlFor="affected-networks" className="label">Affected Networks (comma-separated)</label>
               <Input
+                id="affected-networks"
                 value={formData.affectedNetworks}
                 onChange={(e) => setFormData({ ...formData, affectedNetworks: e.target.value })}
                 placeholder="10.10.1.0/28, 10.10.1.20/30"
@@ -154,8 +164,9 @@ export const Scenarios: React.FC = () => {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="label">Expected Behavior</label>
+              <label htmlFor="expected-behavior" className="label">Expected Behavior</label>
               <textarea
+                id="expected-behavior"
                 value={formData.expectedBehavior}
                 onChange={(e) => setFormData({ ...formData, expectedBehavior: e.target.value })}
                 className="input min-h-[80px] resize-y"
@@ -163,8 +174,9 @@ export const Scenarios: React.FC = () => {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="label">Observed Behavior (optional)</label>
+              <label htmlFor="observed-behavior" className="label">Observed Behavior (optional)</label>
               <textarea
+                id="observed-behavior"
                 value={formData.observedBehavior}
                 onChange={(e) => setFormData({ ...formData, observedBehavior: e.target.value })}
                 className="input min-h-[80px] resize-y"
@@ -172,7 +184,7 @@ export const Scenarios: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked defaultChecked className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" disabled />
+                <input type="checkbox" checked className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" disabled />
                 <span className="text-sm text-slate-700">Educational simulation only (not live Packet Tracer state)</span>
               </label>
             </div>
@@ -200,7 +212,7 @@ export const Scenarios: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {serialLinks.map((link) => (
               <div key={link.linkId} className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h4 className="font-medium text-red-900 mb-2">Link: {link.linkId}</h4>
+                <h4 className="font-medium text-red-900 mb-2">{design.devices.find((d) => d.deviceId === link.sourceDeviceId)?.hostname} ↔ {design.devices.find((d) => d.deviceId === link.targetDeviceId)?.hostname}</h4>
                 <p className="text-sm text-red-700 mb-2">
                   {link.sourceDeviceId} ({link.sourceInterface}) ↔ {link.targetDeviceId} ({link.targetInterface})
                 </p>
@@ -209,6 +221,7 @@ export const Scenarios: React.FC = () => {
                   <strong>Impact:</strong> {link.targetDeviceId} and downstream networks become unreachable from {link.sourceDeviceId} side.
                   OSPF cannot converge to an alternate path because none exists.
                 </div>
+                <Button asChild size="sm" variant="secondary" className="mt-3"><Link to={`/topology?failedLink=${encodeURIComponent(link.linkId)}`}>Simulate this failure ↗</Link></Button>
               </div>
             ))}
           </div>
@@ -241,7 +254,7 @@ export const Scenarios: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant="info">{scenario.failedLinkId}</Badge>
-                  <StatusBadge status={scenario.isEducationalSimulation ? 'configured' : 'verified'} />
+                  <Badge variant="neutral">{scenario.isEducationalSimulation ? 'Educational simulation' : 'Recorded observation'}</Badge>
                 </div>
               </CardHeader>
               <div className="card-body space-y-4">
@@ -281,3 +294,5 @@ export const Scenarios: React.FC = () => {
     </div>
   );
 };
+
+

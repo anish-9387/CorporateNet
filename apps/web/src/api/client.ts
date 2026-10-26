@@ -28,6 +28,11 @@ async function request<T>(
     },
   });
 
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    if (response.ok && contentType.includes('text/markdown')) return await response.text() as T;
+    throw new ApiError(response.status, 'INVALID_RESPONSE', 'API unavailable. Start the API server and check its URL.');
+  }
   const data: ApiResponse<T> = await response.json();
 
   if (!response.ok || !data.success) {

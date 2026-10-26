@@ -17,7 +17,7 @@ export const designsApi = {
     name: string;
     description?: string;
     parentCidr: string;
-    departments: { name: string; hostRequirement: number }[];
+    departments: { name: string; hostRequirement: number; reservedCapacity?: number }[];
     devices: { hostname: string; type: string; model?: string; managementIp?: string }[];
     interfaces: { deviceId: string; interfaceName: string; ipAddress?: string; subnetMask?: string; networkCidr?: string; passiveOspf?: boolean }[];
     links: { sourceDeviceId: string; sourceInterface: string; targetDeviceId: string; targetInterface: string; networkCidr: string; medium: string }[];

@@ -1,4 +1,4 @@
-import { NetworkDesignModel, INetworkDesign, IDepartment, IDevice, IInterface, ILink, IOspf } from '../models';
+import { NetworkDesignModel, TestRunModel, ScenarioModel, INetworkDesign, IDepartment, IDevice, IInterface, ILink, IOspf } from '../models';
 import { calculateVLSM, SubnetInput } from './vlsm';
 import { AppError } from '../utils/errors';
 
@@ -39,6 +39,7 @@ function applyVLSMToDesign(input: CreateDesignInput): IDepartment[] {
   const vlsmInputs: SubnetInput[] = input.departments.map((d) => ({
     name: d.name,
     hostCount: d.hostRequirement,
+    reservedCapacity: d.reservedCapacity,
   }));
 
   const result = calculateVLSM(input.parentCidr, vlsmInputs);
@@ -68,15 +69,25 @@ export const designService = {
       ...d,
       deviceId: generateId(d.type),
     }));
+    if (new Set(devices.map((d) => d.hostname)).size !== devices.length) {
+      throw AppError.validation('Device hostnames must be unique');
+    }
+    const resolveDevice = (hostname: string) => {
+      const device = devices.find((d) => d.hostname === hostname);
+      if (!device) throw AppError.validation(`Unknown device: ${hostname}`);
+      return device.deviceId;
+    };
 
     const interfaces = input.interfaces.map((i) => ({
       ...i,
-      deviceId: i.deviceId,
+      deviceId: resolveDevice(i.deviceId),
     }));
 
     const links = input.links.map((l) => ({
       ...l,
       linkId: generateId('link'),
+      sourceDeviceId: resolveDevice(l.sourceDeviceId),
+      targetDeviceId: resolveDevice(l.targetDeviceId),
     }));
 
     const design = new NetworkDesignModel({
@@ -107,16 +118,20 @@ export const designService = {
     }
 
     const updateData = { ...input };
-    if (input.parentCidr && input.departments) {
-      const vlsmInputs: SubnetInput[] = input.departments.map((d) => ({
+    if (input.parentCidr || input.departments) {
+      const existing = await this.findById(id);
+      if (!existing) return null;
+      const departments = input.departments ?? existing.departments;
+      const vlsmInputs: SubnetInput[] = departments.map((d) => ({
         name: d.name,
         hostCount: d.hostRequirement,
+        reservedCapacity: d.reservedCapacity,
       }));
-      const result = calculateVLSM(input.parentCidr, vlsmInputs);
+      const result = calculateVLSM(input.parentCidr ?? existing.parentCidr, vlsmInputs);
       if (!result.isValid) {
         throw AppError.validation('VLSM calculation failed', result.errors);
       }
-      updateData.departments = input.departments.map((dept) => {
+      updateData.departments = departments.map((dept) => {
         const subnet = result.subnets.find((s) => s.name === dept.name);
         if (!subnet) throw AppError.internal(`Subnet not found for ${dept.name}`);
         return {
@@ -126,6 +141,10 @@ export const designService = {
           subnetMask: subnet.subnetMask,
         };
       });
+      const allocationChanged = existing.departments.length !== updateData.departments.length || existing.departments.some((dept) => updateData.departments!.find((next) => next.name === dept.name)?.networkCidr !== dept.networkCidr);
+      if (allocationChanged && (existing.interfaces.length || existing.links.length) && (!input.interfaces || !input.links)) {
+        throw AppError.validation('Changing subnet allocations requires updated interfaces and links for this connected design');
+      }
     }
 
     return NetworkDesignModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true }).lean<INetworkDesign>().exec();
@@ -136,6 +155,7 @@ export const designService = {
       throw AppError.badRequest('Invalid design ID format');
     }
     const result = await NetworkDesignModel.findByIdAndDelete(id);
+    if (result) await Promise.all([TestRunModel.deleteMany({ designId: id }), ScenarioModel.deleteMany({ designId: id })]);
     return result !== null;
   },
 

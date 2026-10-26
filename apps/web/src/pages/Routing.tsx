@@ -1,3 +1,4 @@
+import { findPath } from '@/utils/simulation';
 import React, { useEffect, useState } from 'react';
 import { designsApi } from '@/api/designs';
 import { NetworkDesign, RoutingInfo } from '@/types';
@@ -60,7 +61,7 @@ export const Routing: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex overflow-x-auto gap-2 border-b border-slate-200">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -78,7 +79,7 @@ export const Routing: React.FC = () => {
       </div>
 
       {activeTab === 'overview' && <OverviewTab design={design} routing={routing} />}
-      {activeTab === 'neighbors' && <NeighborsTab />}
+      {activeTab === 'neighbors' && <NeighborsTab design={design} />}
       {activeTab === 'routes' && <RoutesTab design={design} routing={routing} />}
       {activeTab === 'evidence' && <EvidenceTab />}
     </div>
@@ -112,13 +113,13 @@ function OverviewTab({ design, routing }: { design: NetworkDesign; routing: Rout
             </div>
           </div>
           <div className="pt-4 border-t border-slate-200">
-            <h4 className="font-medium text-slate-900 mb-2">Network Statements (Expected)</h4>
+            <h4 className="font-medium text-slate-900 mb-2">Advertised Networks (Expected)</h4>
             <div className="space-y-1 font-mono text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">
               {design.departments.map((dept) => (
-                <div key={dept.name}>network {dept.networkCidr} area 0</div>
+                <div key={dept.name}>{dept.networkCidr} · area {design.ospf.areas[0]}</div>
               ))}
               {design.links.filter((l) => l.medium === 'serial').map((link) => (
-                <div key={link.linkId}>network {link.networkCidr} area 0</div>
+                <div key={link.linkId}>{link.networkCidr} · area {design.ospf.areas[0]}</div>
               ))}
             </div>
           </div>
@@ -132,11 +133,11 @@ function OverviewTab({ design, routing }: { design: NetworkDesign; routing: Rout
         <div className="card-body space-y-4">
           <div className="p-3 bg-slate-50 rounded-lg">
             <p className="text-xs text-slate-500 uppercase tracking-wider">Total Routes</p>
-            <p className="text-2xl font-bold text-slate-900">{routing.routes.length + design.departments.length}</p>
+            <p className="text-2xl font-bold text-slate-900">{new Set(design.interfaces.map((i) => i.networkCidr).filter(Boolean)).size}</p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg">
             <p className="text-xs text-slate-500 uppercase tracking-wider">Connected Networks</p>
-            <p className="text-2xl font-bold text-slate-900">{design.departments.length + design.links.length}</p>
+            <p className="text-2xl font-bold text-slate-900">{new Set(design.interfaces.map((i) => i.networkCidr).filter(Boolean)).size}</p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg">
             <p className="text-xs text-slate-500 uppercase tracking-wider">OSPF Areas</p>
@@ -152,19 +153,21 @@ function OverviewTab({ design, routing }: { design: NetworkDesign; routing: Rout
   );
 }
 
-function NeighborsTab() {
-  const neighbors = [
-    { router: 'R1', neighbor: 'R2', interface: 'S0/0/0', state: 'FULL', address: '10.10.1.18', deadTime: '00:00:32' },
-    { router: 'R2', neighbor: 'R1', interface: 'S0/0/0', state: 'FULL', address: '10.10.1.17', deadTime: '00:00:35' },
-    { router: 'R2', neighbor: 'R3', interface: 'S0/0/1', state: 'FULL', address: '10.10.1.22', deadTime: '00:00:30' },
-    { router: 'R3', neighbor: 'R2', interface: 'S0/0/0', state: 'FULL', address: '10.10.1.21', deadTime: '00:00:38' },
-  ];
-
+function NeighborsTab({ design }: { design: NetworkDesign }) {
+  const neighbors = design.links.filter((link) => design.devices.some((d) => d.deviceId === link.sourceDeviceId && d.type === 'router') && design.devices.some((d) => d.deviceId === link.targetDeviceId && d.type === 'router')).flatMap((link) => [
+    { local: link.sourceDeviceId, remote: link.targetDeviceId, iface: link.sourceInterface },
+    { local: link.targetDeviceId, remote: link.sourceDeviceId, iface: link.targetInterface },
+  ].map(({ local, remote, iface }) => ({
+    router: design.devices.find((d) => d.deviceId === local)?.hostname ?? local,
+    neighbor: design.devices.find((d) => d.deviceId === remote)?.hostname ?? remote,
+    interface: iface, state: 'Expected', deadTime: 'Not measured',
+    address: design.interfaces.find((i) => i.deviceId === remote && i.networkCidr === link.networkCidr)?.ipAddress ?? 'Unassigned',
+  })));
   return (
     <Card>
       <CardHeader className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-900">OSPF Neighbor Adjacencies</h3>
-        <Badge variant="success">All FULL</Badge>
+        <Badge variant="neutral">Design expectations</Badge>
       </CardHeader>
       <div className="card-body p-0">
         <Table
@@ -183,7 +186,7 @@ function NeighborsTab() {
       </div>
       <CardFooter>
         <p className="text-sm text-slate-500">
-          <strong>Note:</strong> Neighbor data shown is from documented Packet Tracer validation.
+          <strong>Note:</strong> Neighbor data is derived from this design; no live adjacency evidence has been collected.
           Run <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">show ip ospf neighbor</code> on each router to verify.
         </p>
       </CardFooter>
@@ -192,41 +195,27 @@ function NeighborsTab() {
 }
 
 function RoutesTab({ design, routing }: { design: NetworkDesign; routing: RoutingInfo }) {
-  const allRoutes = [
-    ...design.departments.map((dept) => ({
-      code: 'C',
-      network: dept.networkCidr,
-      nextHop: 'Directly connected',
-      interface: routing.interfaces.find((i) => i.networkCidr === dept.networkCidr)?.interfaceName ?? 'N/A',
-      source: 'Connected',
-    })),
-    ...design.links.filter((l) => l.medium === 'serial').map((link) => ({
-      code: 'C',
-      network: link.networkCidr,
-      nextHop: 'Directly connected',
-      interface: routing.interfaces.find((i) => i.networkCidr === link.networkCidr)?.interfaceName ?? 'N/A',
-      source: 'Connected',
-    })),
-    ...design.departments.map((dept) => ({
-      code: 'O',
-      network: dept.networkCidr,
-      nextHop: 'OSPF',
-      interface: 'N/A',
-      source: 'OSPF',
-    })),
-    ...design.links.filter((l) => l.medium === 'serial').map((link) => ({
-      code: 'O',
-      network: link.networkCidr,
-      nextHop: 'OSPF',
-      interface: 'N/A',
-      source: 'OSPF',
-    })),
-  ];
-
+  const routers = design.devices.filter((device) => device.type === 'router');
+  const [routerId, setRouterId] = useState(routers[0]?.deviceId ?? '');
+  const networks = [...new Set(design.interfaces.map((iface) => iface.networkCidr).filter((network): network is string => Boolean(network)))];
+  const allRoutes = networks.flatMap((network) => {
+    const owners = design.interfaces.filter((iface) => iface.networkCidr === network).map((iface) => iface.deviceId);
+    const connected = owners.includes(routerId);
+    const path = owners.map((owner) => findPath(design.links, routerId, owner)).filter((route): route is string[] => route !== null).sort((a, b) => a.length - b.length)[0];
+    if (!path) return [];
+    const firstLink = design.links.find((link) => link.linkId === path[0]);
+    const nextDevice = firstLink?.sourceDeviceId === routerId ? firstLink.targetDeviceId : firstLink?.sourceDeviceId;
+    return [{
+      code: connected ? 'C' : 'O', network,
+      nextHop: connected ? 'Directly connected' : design.interfaces.find((iface) => iface.deviceId === nextDevice && iface.networkCidr === firstLink?.networkCidr)?.ipAddress ?? 'Unassigned',
+      interface: connected ? routing.interfaces.find((iface) => iface.deviceId === routerId && iface.networkCidr === network)?.interfaceName ?? 'N/A' : firstLink?.sourceDeviceId === routerId ? firstLink.sourceInterface : firstLink?.targetInterface ?? 'N/A',
+      source: connected ? 'Connected' : 'Expected OSPF',
+    }];
+  });
   return (
     <Card>
       <CardHeader className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">IP Routing Table (Expected)</h3>
+        <h3 className="text-lg font-semibold text-slate-900">IP Routing Table (Expected)</h3><label className="text-sm">Router <select className="input" value={routerId} onChange={(e) => setRouterId(e.target.value)}>{routers.map((router) => <option key={router.deviceId} value={router.deviceId}>{router.hostname}</option>)}</select></label>
         <div className="flex gap-2">
           <Badge variant="info">C - Connected</Badge>
           <Badge variant="success">O - OSPF</Badge>
@@ -258,10 +247,10 @@ function RoutesTab({ design, routing }: { design: NetworkDesign; routing: Routin
 
 function EvidenceTab() {
   const evidence = [
-    { router: 'R1', command: 'show ip ospf neighbor', output: 'Neighbor ID     Pri  State       Dead Time   Address         Interface\n2.2.2.2         1    FULL/DR      00:00:32    10.10.1.18      Serial0/0/0', verified: true },
-    { router: 'R1', command: 'show ip route ospf', output: 'O    10.10.0.128/26 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.0.192/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.0.224/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.0/28 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.20/30 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0', verified: true },
-    { router: 'R2', command: 'show ip ospf neighbor', output: 'Neighbor ID     Pri  State       Dead Time   Address         Interface\n1.1.1.1         1    FULL/BDR     00:00:35    10.10.1.17      Serial0/0/0\n3.3.3.3         1    FULL/DR      00:00:30    10.10.1.22      Serial0/0/1', verified: true },
-    { router: 'R3', command: 'show ip route', output: 'Gateway of last resort is not set\n\nC    10.10.1.0/28 is directly connected, GigabitEthernet0/0\nC    10.10.1.20/30 is directly connected, Serial0/0/0\nO    10.10.0.0/25 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.128/26 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.192/27 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.224/27 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.1.16/30 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0', verified: true },
+    { router: 'R1', command: 'show ip ospf neighbor', output: 'Neighbor ID     Pri  State       Dead Time   Address         Interface\n2.2.2.2         1    FULL/DR      00:00:32    10.10.1.18      Serial0/0/0', verified: false },
+    { router: 'R1', command: 'show ip route ospf', output: 'O    10.10.0.192/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.0.224/27 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.0/28 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0\nO    10.10.1.20/30 [110/128] via 10.10.1.18, 00:05:12, Serial0/0/0', verified: false },
+    { router: 'R2', command: 'show ip ospf neighbor', output: 'Neighbor ID     Pri  State       Dead Time   Address         Interface\n1.1.1.1         1    FULL/BDR     00:00:35    10.10.1.17      Serial0/0/0\n3.3.3.3         1    FULL/DR      00:00:30    10.10.1.22      Serial0/0/1', verified: false },
+    { router: 'R3', command: 'show ip route', output: 'Gateway of last resort is not set\n\nC    10.10.1.0/28 is directly connected, GigabitEthernet0/0\nC    10.10.1.20/30 is directly connected, Serial0/0/0\nO    10.10.0.0/25 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.128/26 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.192/27 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.0.224/27 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0\nO    10.10.1.16/30 [110/65] via 10.10.1.21, 00:04:22, Serial0/0/0', verified: false },
   ];
 
   return (
@@ -274,7 +263,7 @@ function EvidenceTab() {
               <code className="font-mono text-sm bg-slate-100 px-2 py-1 rounded">{item.command}</code>
             </div>
             <Badge variant={item.verified ? 'success' : 'warning'}>
-              {item.verified ? 'Verified' : 'Simulated'}
+              {item.verified ? 'Verified' : 'Illustrative example'}
             </Badge>
           </CardHeader>
           <div className="card-body p-0">
@@ -311,15 +300,16 @@ function EvidenceTab() {
   );
 }
 
-function OverviewIcon({ className }: { className?: string }) {
+function OverviewIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
 }
-function NeighborsIcon({ className }: { className?: string }) {
+function NeighborsIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 }
-function RoutesIcon({ className }: { className?: string }) {
+function RoutesIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
 }
-function EvidenceIcon({ className }: { className?: string }) {
+function EvidenceIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
 }
+

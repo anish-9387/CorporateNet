@@ -226,12 +226,21 @@ export const Overview: React.FC = () => {
   const totalHosts = design.departments.reduce((sum, d) => sum + d.hostRequirement, 0);
   const totalUsable = design.departments.reduce((sum, d) => {
     const prefix = parseInt(d.networkCidr.split('/')[1]);
-    return sum + (1 << (32 - prefix)) - 2;
+    return sum + 2 ** (32 - prefix) - 2;
   }, 0);
   const utilization = totalUsable > 0 ? Math.round((totalHosts / totalUsable) * 100) : 0;
 
   return (
     <div className="space-y-6">
+      <div className="hero">
+        <p className="eyebrow mb-3">YOUR NETWORK, CLEARLY CONNECTED</p>
+        <h2>A little clarity.<br />Across every connection.</h2>
+        <p className="text-slate-500 text-sm mt-4">Plan your address space, explore the topology, and see how your network responds — all in one workspace.</p>
+        <div className="hero-action flex flex-wrap items-center gap-3 mt-6">
+          <Button asChild><Link to="/topology">Open simulation <span aria-hidden="true">↗</span></Link></Button>
+          <span className="text-xs text-slate-500 font-mono">{design.parentCidr} / OSPF area {design.ospf.areas.join(', ')}</span>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Routers"
@@ -285,7 +294,7 @@ export const Overview: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {design.departments.map((dept) => {
                     const prefix = parseInt(dept.networkCidr.split('/')[1]);
-                    const usable = (1 << (32 - prefix)) - 2;
+                    const usable = 2 ** (32 - prefix) - 2;
                     return (
                       <tr key={dept.name} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-medium text-slate-900">{dept.name}</td>
@@ -318,7 +327,7 @@ export const Overview: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-600">Router IDs</span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 justify-end">
                 {Object.entries(design.ospf.routerIds).map(([router, id]) => (
                   <Badge key={router} variant="info">{router}: {id}</Badge>
                 ))}
@@ -326,7 +335,7 @@ export const Overview: React.FC = () => {
             </div>
             <div className="pt-4 border-t border-slate-200">
               <StatusBadge status="configured" />
-              <span className="text-sm text-slate-500 ml-2">Configuration validated in Packet Tracer</span>
+              <span className="text-sm text-slate-500 ml-2">Expected configuration · verify in Packet Tracer</span>
             </div>
           </div>
         </Card>
@@ -386,3 +395,4 @@ export const Overview: React.FC = () => {
     </div>
   );
 };
+

@@ -6,31 +6,12 @@ import { Card, CardHeader, Badge, StatusBadge, Button, Input } from '@/component
 const statuses: TestStatus[] = ['passed', 'failed', 'not-run', 'not-applicable'];
 const evidenceTypes: EvidenceType[] = ['packet-tracer-cli', 'packet-tracer-ping', 'manual', 'simulated'];
 
-const defaultTests = [
-  { source: '10.10.0.10', destination: '10.10.0.130', testType: 'ping' as const, description: 'Engineering → Admin' },
-  { source: '10.10.0.10', destination: '10.10.0.193', testType: 'ping' as const, description: 'Engineering → Finance' },
-  { source: '10.10.0.10', destination: '10.10.0.225', testType: 'ping' as const, description: 'Engineering → HR' },
-  { source: '10.10.0.10', destination: '10.10.1.2', testType: 'ping' as const, description: 'Engineering → IT Support' },
-  { source: '10.10.0.130', destination: '10.10.0.193', testType: 'ping' as const, description: 'Admin → Finance' },
-  { source: '10.10.0.130', destination: '10.10.0.225', testType: 'ping' as const, description: 'Admin → HR' },
-  { source: '10.10.0.130', destination: '10.10.1.2', testType: 'ping' as const, description: 'Admin → IT Support' },
-  { source: '10.10.0.193', destination: '10.10.0.225', testType: 'ping' as const, description: 'Finance → HR' },
-  { source: '10.10.0.193', destination: '10.10.1.2', testType: 'ping' as const, description: 'Finance → IT Support' },
-  { source: '10.10.0.225', destination: '10.10.1.2', testType: 'ping' as const, description: 'HR → IT Support' },
-  { source: 'R1', destination: 'R2', testType: 'ospf-neighbor' as const, description: 'R1-R2 OSPF Adjacency' },
-  { source: 'R2', destination: 'R3', testType: 'ospf-neighbor' as const, description: 'R2-R3 OSPF Adjacency' },
-  { source: 'R1', destination: 'G0/0', testType: 'interface-status' as const, description: 'R1 G0/0 (Engineering)' },
-  { source: 'R1', destination: 'G0/1', testType: 'interface-status' as const, description: 'R1 G0/1 (Admin)' },
-  { source: 'R2', destination: 'G0/0', testType: 'interface-status' as const, description: 'R2 G0/0 (Finance)' },
-  { source: 'R2', destination: 'G0/1', testType: 'interface-status' as const, description: 'R2 G0/1 (HR)' },
-  { source: 'R3', destination: 'G0/0', testType: 'interface-status' as const, description: 'R3 G0/0 (IT Support)' },
-];
-
 export const Diagnostics: React.FC = () => {
   const [design, setDesign] = useState<NetworkDesign | null>(null);
   const [tests, setTests] = useState<TestRun[]>([]);
   const [matrix, setMatrix] = useState<ConnectivityMatrix>({});
   const [loading, setLoading] = useState(true);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +24,7 @@ export const Diagnostics: React.FC = () => {
           const d = designs[0];
           setDesign(d);
           const [testsRes, matrixRes] = await Promise.all([
-            testsApi.list({ designId: d._id }),
+            testsApi.list({ designId: d._id, limit: 100 }),
             testsApi.getMatrix(d._id),
           ]);
           setTests(testsRes.tests);
@@ -63,12 +44,25 @@ export const Diagnostics: React.FC = () => {
     return matrix[source]?.[destination] ?? 'not-run';
   };
 
+  const defaultTests = design ? [
+    ...design.departments.flatMap((source) => design.departments.filter((destination) => source.name !== destination.name).map((destination) => ({ source: source.name, destination: destination.name, testType: 'ping', description: `${source.name} → ${destination.name}` }))),
+    ...design.links.filter((link) => link.medium === 'serial').map((link) => ({ source: link.sourceDeviceId, destination: link.targetDeviceId, testType: 'ospf-neighbor', description: `${design.devices.find((d) => d.deviceId === link.sourceDeviceId)?.hostname} ↔ ${design.devices.find((d) => d.deviceId === link.targetDeviceId)?.hostname} OSPF` })),
+    ...design.interfaces.map((iface) => ({ source: iface.deviceId, destination: iface.interfaceName, testType: 'interface-status', description: `${design.devices.find((d) => d.deviceId === iface.deviceId)?.hostname} ${iface.interfaceName}` })),
+  ] : [];
+  const latestTest = (test: typeof defaultTests[number]) => tests.find((record) => record.source === test.source && record.destination === test.destination && record.testType === test.testType);
+  const bulkSave = async (status: TestStatus) => {
+    setBulkSaving(true);
+    try { for (let i = 0; i < defaultTests.length; i++) await saveTest(i, status, 'manual', 'Bulk manual record'); }
+    finally { setBulkSaving(false); }
+  };
   const saveTest = async (index: number, status: TestStatus, evidenceType: EvidenceType, notes: string) => {
     if (!design) return;
+    setError(null);
     const test = defaultTests[index];
     try {
       setSaving(`${test.source}-${test.destination}`);
-      await testsApi.create({
+      const existing = latestTest(test);
+      const payload = {
         designId: design._id,
         testType: test.testType,
         source: test.source,
@@ -76,8 +70,10 @@ export const Diagnostics: React.FC = () => {
         status,
         evidenceType,
         notes,
-      });
-      setTests((prev) => [...prev, { designId: design._id, testType: test.testType, source: test.source, destination: test.destination, status, evidenceType, notes, testedAt: new Date().toISOString(), _id: '', createdAt: '', updatedAt: '' }]);
+      };
+      const saved = existing ? await testsApi.update(existing._id, payload) : await testsApi.create(payload);
+      setTests((prev) => [saved, ...prev.filter((record) => record._id !== saved._id)]);
+      if (test.testType === 'ping') setMatrix((prev) => ({ ...prev, [test.source]: { ...prev[test.source], [test.destination]: status } }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save test');
     } finally {
@@ -89,7 +85,7 @@ export const Diagnostics: React.FC = () => {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
   }
 
-  if (error) {
+  if (error && !design) {
     return <Card><div className="p-6 text-center text-red-600">Error: {error}</div></Card>;
   }
 
@@ -97,12 +93,13 @@ export const Diagnostics: React.FC = () => {
     return <Card><div className="p-6 text-center text-slate-500">No design loaded</div></Card>;
   }
 
-  const passedCount = tests.filter((t) => t.status === 'passed').length;
-  const failedCount = tests.filter((t) => t.status === 'failed').length;
-  const notRunCount = defaultTests.length - tests.length;
+  const passedCount = defaultTests.filter((test) => latestTest(test)?.status === 'passed').length;
+  const failedCount = defaultTests.filter((test) => latestTest(test)?.status === 'failed').length;
+  const notRunCount = defaultTests.filter((test) => !latestTest(test) || latestTest(test)?.status === 'not-run').length;
 
   return (
     <div className="space-y-6">
+      {error && <div role="alert" className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <div className="card-body text-center">
@@ -173,10 +170,10 @@ export const Diagnostics: React.FC = () => {
         <CardHeader className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Test Checklist</h2>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((_t, i) => saveTest(i, 'passed', 'manual', 'Bulk pass'))}>
+            <Button variant="secondary" size="sm" disabled={bulkSaving || saving !== null} onClick={() => bulkSave('passed')}>
               Mark All Passed
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => defaultTests.forEach((_t, i) => saveTest(i, 'not-run', 'manual', 'Bulk reset'))}>
+            <Button variant="secondary" size="sm" disabled={bulkSaving || saving !== null} onClick={() => bulkSave('not-run')}>
               Reset All
             </Button>
           </div>
@@ -184,7 +181,7 @@ export const Diagnostics: React.FC = () => {
         <div className="card-body p-0">
           <div className="divide-y divide-slate-100">
             {defaultTests.map((test, index) => {
-              const existingTest = tests.find((_t) => _t.source === test.source && _t.destination === test.destination && _t.testType === test.testType);
+              const existingTest = latestTest(test);
               const currentStatus = existingTest?.status ?? 'not-run';
               const currentEvidence = existingTest?.evidenceType ?? 'manual';
               const currentNotes = existingTest?.notes ?? '';
@@ -200,27 +197,29 @@ export const Diagnostics: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <select
-                      value={currentStatus}
+                      aria-label={`Status for ${test.description}`} value={currentStatus}
                       onChange={(e) => saveTest(index, e.target.value as TestStatus, currentEvidence, currentNotes)}
                       className="input input-sm w-32"
-                      disabled={saving === `${test.source}-${test.destination}`}
+                      disabled={bulkSaving || saving !== null}
                     >
                       {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <select
-                      value={currentEvidence}
+                      aria-label={`Evidence for ${test.description}`} value={currentEvidence}
                       onChange={(e) => saveTest(index, currentStatus, e.target.value as EvidenceType, currentNotes)}
                       className="input input-sm w-40"
-                      disabled={saving === `${test.source}-${test.destination}`}
+                      disabled={bulkSaving || saving !== null}
                     >
                       {evidenceTypes.map((e) => <option key={e} value={e}>{e}</option>)}
                     </select>
                     <Input
-                      value={currentNotes}
-                      onChange={(e) => saveTest(index, currentStatus, currentEvidence, e.target.value)}
+                      key={existingTest?._id ?? 'new'}
+                      aria-label={`Notes for ${test.description}`}
+                      defaultValue={currentNotes}
+                      onBlur={(e) => { if (e.target.value !== currentNotes) saveTest(index, currentStatus, currentEvidence, e.target.value); }}
                       placeholder="Notes..."
                       className="w-48"
-                      disabled={saving === `${test.source}-${test.destination}`}
+                      disabled={bulkSaving || saving !== null}
                     />
                     {saving === `${test.source}-${test.destination}` && (
                       <div className="spinner" aria-label="Saving" />
@@ -266,3 +265,4 @@ export const Diagnostics: React.FC = () => {
     </div>
   );
 };
+

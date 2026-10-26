@@ -30,6 +30,7 @@ export const Reports: React.FC = () => {
 
   const generateReport = async () => {
     if (!design) return;
+    setError(null);
     try {
       setGenerating(true);
       const data = await reportService.generate(design._id);
@@ -43,6 +44,7 @@ export const Reports: React.FC = () => {
 
   const exportMarkdown = async () => {
     if (!design) return;
+    setError(null);
     try {
       setGenerating(true);
       const markdown = await reportService.exportMarkdown(design._id);
@@ -66,7 +68,7 @@ export const Reports: React.FC = () => {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
   }
 
-  if (error) {
+  if (error && !design) {
     return <Card><div className="p-6 text-center text-red-600">Error: {error}</div></Card>;
   }
 
@@ -80,7 +82,8 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {error && <div role="alert" className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Reports</h2>
           <p className="text-sm text-slate-500">Generate and export network design documentation</p>
@@ -182,12 +185,12 @@ export const Reports: React.FC = () => {
                     const passed = typeTests.filter((t) => t.status === 'passed').length;
                     const total = typeTests.length;
                     return (
-                      <div key={item.type} className="flex items-center justify-between">
+                      <div key={item.type} className="flex flex-wrap gap-4 items-center justify-between">
                         <span className="text-sm text-slate-700">{item.label}</span>
                         <div className="flex items-center gap-2">
                           {total > 0 && (
                             <>
-                              <StatusBadge status={passed === total && total > 0 ? 'passed' : passed > 0 ? 'configured' : 'not-run'} />
+                              <StatusBadge status={typeTests.some((test) => test.status === 'failed') ? 'failed' : passed === total ? 'passed' : 'not-run'} />
                               <span className="text-sm font-mono text-slate-500">{passed}/{total}</span>
                             </>
                           )}
@@ -266,12 +269,10 @@ export const Reports: React.FC = () => {
         <Card>
           <div className="card-body text-center py-12">
             <p className="text-slate-500 mb-4">No report generated yet. Click "Generate Report" to create one.</p>
-            <Button onClick={generateReport} variant="primary">
-              Generate Report
-            </Button>
           </div>
         </Card>
       )}
     </div>
   );
 };
+

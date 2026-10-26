@@ -1,3 +1,4 @@
+import { AppError } from '../utils/errors';
 import { Router } from 'express';
 import { designService } from '../services/design';
 import { validate } from '../middleware/validate';
@@ -37,8 +38,7 @@ router.get(
     const id = req.params.id!;
     const design = await designService.findById(id);
     if (!design) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse(design));
   })
@@ -51,8 +51,7 @@ router.patch(
     const id = req.params.id!;
     const design = await designService.update(id, req.body);
     if (!design) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse(design));
   })
@@ -65,8 +64,7 @@ router.delete(
     const id = req.params.id!;
     const deleted = await designService.delete(id);
     if (!deleted) {
-      res.status(404).json(successResponse(null));
-      return;
+      throw AppError.notFound('Record not found');
     }
     res.json(successResponse({ deleted: true }));
   })

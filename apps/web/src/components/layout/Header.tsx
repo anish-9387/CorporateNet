@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '@/api/client';
 import { useLocation } from 'react-router-dom';
 
 const pageTitles: Record<string, { title: string; description: string }> = {
@@ -13,12 +14,15 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 
 export const Header: React.FC = () => {
   const location = useLocation();
+  const [connected, setConnected] = useState<boolean | null>(null);
+  useEffect(() => {
+    api.get('/health').then(() => setConnected(true)).catch(() => setConnected(false));
+  }, [location.pathname]);
   const pageInfo = pageTitles[location.pathname] ?? { title: 'CorporateNet', description: '' };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center px-6">
-      <div className="w-64" aria-hidden="true" />
-      <div className="flex-1 max-w-7xl mx-auto">
+    <header className="workspace-header sticky top-0 z-30 flex items-center gap-4">
+      <div className="flex-1 min-w-0">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">{pageInfo.title}</h1>
           {pageInfo.description && (
@@ -28,11 +32,11 @@ export const Header: React.FC = () => {
       </div>
       <div className="flex items-center gap-4">
         <span className="text-sm text-slate-500 hidden sm:block">
-          Demo Mode
+          Educational workspace
         </span>
-        <span className="relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
-          Live
+        <span role="status" className="connection-status">
+          <span className={`status-dot ${connected ? 'connected' : ''}`} aria-hidden="true" />
+          {connected === null ? 'Connecting' : connected ? 'API online' : 'API offline'}
         </span>
       </div>
     </header>

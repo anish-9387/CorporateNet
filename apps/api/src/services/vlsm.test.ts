@@ -2,6 +2,31 @@ import { describe, it, expect } from 'vitest';
 import { calculateVLSM, validateSubnetAllocation } from '../services/vlsm';
 
 describe('VLSM Calculation', () => {
+  it('handles high IPv4 addresses and the full /0 space without signed overflow', () => {
+    const high = calculateVLSM('192.168.1.0/24', [{ name: 'LAN', hostCount: 100 }]);
+    expect(high.isValid).toBe(true);
+    expect(high.subnets[0].broadcast).toBe('192.168.1.127');
+    expect(high.remainingAddressSpace).toEqual(['192.168.1.128/25']);
+    const full = calculateVLSM('0.0.0.0/0', [{ name: 'All', hostCount: 2 ** 32 - 2 }]);
+    expect(full.isValid).toBe(true);
+    expect(full.subnets[0].totalAddresses).toBe(2 ** 32);
+    expect(full.subnets[0].broadcast).toBe('255.255.255.255');
+  });
+
+  it('decomposes every remaining address into aligned CIDR blocks', () => {
+    const result = calculateVLSM('10.0.0.0/24', [{ name: 'LAN', hostCount: 10 }]);
+    expect(result.remainingAddressSpace).toEqual(['10.0.0.16/28', '10.0.0.32/27', '10.0.0.64/26', '10.0.0.128/25']);
+  });
+
+  it('rejects malformed CIDRs, duplicate names, and unsafe host counts', () => {
+    for (const cidr of ['999.1.1.0/24', '10.0.0.0/33', '10.0.0.0/2x', '10.0.0.0/24/1']) {
+      expect(calculateVLSM(cidr, [{ name: 'LAN', hostCount: 10 }]).isValid).toBe(false);
+    }
+    for (const hostCount of [-1, 0, Infinity, 2 ** 32, 1.5]) {
+      expect(calculateVLSM('0.0.0.0/0', [{ name: 'LAN', hostCount }]).isValid).toBe(false);
+    }
+    expect(calculateVLSM('10.0.0.0/24', [{ name: 'A', hostCount: 10 }, { name: 'A', hostCount: 10 }]).isValid).toBe(false);
+  });
   it('calculates correct subnets for CorporateNet design', () => {
     const result = calculateVLSM('10.10.0.0/23', [
       { name: 'Engineering', hostCount: 100 },
@@ -50,20 +75,22 @@ describe('VLSM Calculation', () => {
     expect(result.subnets[2].name).toBe('Small');
   });
 
-  it('detects overlap error', () => {
+  it('rejects exhausted address space', () => {
     const result = calculateVLSM('10.0.0.0/24', [
       { name: 'A', hostCount: 50 },
       { name: 'B', hostCount: 50 },
       { name: 'C', hostCount: 50 },
+      { name: 'D', hostCount: 50 },
+      { name: 'E', hostCount: 50 },
     ]);
 
     expect(result.isValid).toBe(false);
-    expect(result.errors.some((e) => e.includes('overlap'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('boundary'))).toBe(true);
   });
 
   it('detects out of bounds error', () => {
     const result = calculateVLSM('10.0.0.0/24', [
-      { name: 'A', hostCount: 200 },
+      { name: 'A', hostCount: 255 },
     ]);
 
     expect(result.isValid).toBe(false);

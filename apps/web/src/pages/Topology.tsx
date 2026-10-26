@@ -1,399 +1,114 @@
-// @ts-nocheck
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  ReactFlow,
-  Node,
-  Edge,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
-  Background,
-  Controls,
-  MiniMap,
-  Panel,
-  Handle,
-  Position,
-  type NodeProps,
-  type EdgeProps,
-} from '@xyflow/react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ReactFlow, Background, Controls, Handle, Position, BaseEdge, getSmoothStepPath, type Node, type NodeProps, type Edge, type EdgeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { designsApi } from '@/api/designs';
-import { NetworkDesign, Device, Link } from '@/types';
-import { Card } from '@/components/common';
+import type { NetworkDesign, Device } from '@/types';
+import { Badge, Button, Card } from '@/components/common';
+import { findPath, layoutDevices } from '@/utils/simulation';
 
-const DEVICE_COLORS = {
-  router: { bg: '#1e40af', border: '#1e3a8a', text: '#dbeafe' },
-  switch: { bg: '#059669', border: '#047857', text: '#d1fae5' },
-  pc: { bg: '#7c3aed', border: '#6d28d9', text: '#ede9fe' },
-  server: { bg: '#dc2626', border: '#b91c1c', text: '#fee2e2' },
-};
+type DeviceNodeType = Node<{ device: Device; addresses: string[] }>;
+type PacketEdgeType = Edge<{ active: boolean; duration: number }>;
 
-const MEDIUM_STYLES = {
-  ethernet: { stroke: '#64748b', strokeWidth: 2, strokeDasharray: '0' },
-  serial: { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '5,5' },
-  fiber: { stroke: '#8b5cf6', strokeWidth: 3, strokeDasharray: '0' },
-};
-
-interface CustomNodeData {
-  device: Device;
-  interfaces: Array<{ name: string; ip?: string; network?: string }>;
-}
-
-interface CustomEdgeData {
-  link: Link;
-}
-
-const DeviceNode = ({ data, selected, onClick }: NodeProps<CustomNodeData>) => {
-  const { device, interfaces } = data;
-  const style = DEVICE_COLORS[device.type] || DEVICE_COLORS.router;
-
-  return (
-    <div
-      className="min-w-[180px]"
-      onClick={onClick}
-      style={{
-        border: selected ? `2px solid ${style.border}` : `1px solid ${style.border}`,
-        borderRadius: '12px',
-        backgroundColor: style.bg,
-        color: style.text,
-        boxShadow: selected ? '0 10px 25px -5px rgba(0,0,0,0.2)' : '0 4px 6px -1px rgba(0,0,0,0.1)',
-      }}
-    >
-      <div className="p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            {device.type === 'router' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            )}
-            {device.type === 'switch' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            )}
-            {device.type === 'pc' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            )}
-            {device.type === 'server' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2 4h.01M17 16h.01" />
-              </svg>
-            )}
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm">{device.hostname}</h3>
-            <p className="text-xs opacity-80 capitalize">{device.type}</p>
-          </div>
-        </div>
-
-        {device.managementIp && (
-          <p className="text-xs mb-2 font-mono bg-white/10 px-2 py-1 rounded">
-            Mgmt: {device.managementIp}
-          </p>
-        )}
-
-        {interfaces.length > 0 && (
-          <div className="border-t border-white/20 pt-2">
-            <p className="text-xs font-medium mb-1 opacity-80">Interfaces</p>
-            <ul className="space-y-1 text-xs font-mono">
-              {interfaces.map((iface) => (
-                <li key={iface.name} className="flex items-center justify-between gap-2">
-                  <span className="opacity-80">{iface.name}</span>
-                  {iface.ip && <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">{iface.ip}</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+function DeviceNode({ data, selected }: NodeProps<DeviceNodeType>) {
+  return <div className={`device-node ${data.device.type} ${selected ? 'selected' : ''}`}>
+    <Handle type="target" position={Position.Left} />
+    <div className="flex items-center gap-3">
+      <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" /><path d="M7 10h10M7 14h2m3 0h2m3 0h1" /></svg>
       </div>
-
-      <Handle type="target" position={Position.Top} className="w-2 h-2 bg-white/30 border-2 border-white" />
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 bg-white/30 border-2 border-white" />
-      <Handle type="target" position={Position.Left} className="w-2 h-2 bg-white/30 border-2 border-white" />
-      <Handle type="source" position={Position.Right} className="w-2 h-2 bg-white/30 border-2 border-white" />
+      <div><h3 className="font-semibold text-sm text-slate-900">{data.device.hostname}</h3><p className="text-[10px] uppercase tracking-widest text-slate-500">{data.device.type}</p></div>
     </div>
-  );
-};
+    <p className="text-[10px] text-slate-500 mt-3 font-mono">{data.addresses[0] ?? data.device.model ?? 'Network device'}</p>
+    <Handle type="source" position={Position.Right} />
+  </div>;
+}
 
-const LinkEdge = ({ data, selected }: EdgeProps<CustomEdgeData>) => {
-  const { link } = data;
-  const style = MEDIUM_STYLES[link.medium] || MEDIUM_STYLES.ethernet;
-
-  return (
-    <>
-      <path
-        stroke={selected ? '#2563eb' : style.stroke}
-        strokeWidth={selected ? 3 : style.strokeWidth}
-        strokeDasharray={style.strokeDasharray}
-        fill="none"
-        style={{ filter: selected ? 'drop-shadow(0 0 4px #2563eb)' : 'none' }}
-      />
-      {selected && (
-        <text
-          x="50%"
-          y="-10"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize="10"
-          fill="#2563eb"
-          fontWeight="600"
-          paintOrder="stroke"
-          stroke="white"
-          strokeWidth="3"
-        >
-          {link.networkCidr}
-        </text>
-      )}
-    </>
-  );
-};
-
-const Legend = ({ design }: { design: NetworkDesign }) => {
-  const deviceTypes = [...new Set(design.devices.map((d) => d.type))];
-  const mediumTypes = [...new Set(design.links.map((l) => l.medium))];
-
-  return (
-    <Panel position="bottom-right" className="p-4 bg-white/95 backdrop-blur rounded-xl border border-slate-200 shadow-lg min-w-[200px]">
-      <h4 className="font-semibold text-slate-900 mb-3">Legend</h4>
-      <div className="space-y-3">
-        <div>
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Devices</p>
-          <div className="space-y-1.5">
-            {deviceTypes.map((type) => {
-              const style = DEVICE_COLORS[type as keyof typeof DEVICE_COLORS];
-              return (
-                <div key={type} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: style.bg }} />
-                  <span className="text-sm text-slate-700 capitalize">{type}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Links</p>
-          <div className="space-y-1.5">
-            {mediumTypes.map((medium) => {
-              const style = MEDIUM_STYLES[medium as keyof typeof MEDIUM_STYLES];
-              return (
-                <div key={medium} className="flex items-center gap-2">
-                  <div className="w-6 h-1 rounded" style={{ backgroundColor: style.stroke, border: `${style.strokeWidth}px solid ${style.stroke}` }} />
-                  <span className="text-sm text-slate-700 capitalize">{medium}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </Panel>
-  );
-};
+function PacketEdge(props: EdgeProps<PacketEdgeType>) {
+  const [path] = getSmoothStepPath(props);
+  return <>
+    <BaseEdge id={props.id} path={path} style={props.style} label={props.label} labelStyle={{ fontSize: 10, fill: '#71717a' }} labelBgStyle={{ fill: '#fafafa' }} labelX={(props.sourceX + props.targetX) / 2} labelY={(props.sourceY + props.targetY) / 2 - 12} />
+    {props.data?.active && <circle r="4" fill="#52525b" className="packet-dot"><animateMotion dur={`${props.data.duration}s`} repeatCount="indefinite" path={path} /></circle>}
+  </>;
+}
+const nodeTypes = { device: DeviceNode };
+const edgeTypes = { packet: PacketEdge };
 
 export const Topology: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [design, setDesign] = useState<NetworkDesign | null>(null);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<CustomNodeData | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<CustomEdgeData | null>(null);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<CustomNodeData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<CustomEdgeData>>([]);
-
-  const fetchTopology = useCallback(async () => {
-    try {
-      setLoading(true);
-      const designData = await designsApi.list().then((d) => d[0]);
-
-      if (!designData) return;
-
-      setDesign(designData);
-
-      const deviceInterfaces = designData.interfaces.reduce((acc, iface) => {
-        if (!acc[iface.deviceId]) acc[iface.deviceId] = [];
-        acc[iface.deviceId].push({
-          name: iface.interfaceName,
-          ip: iface.ipAddress,
-          network: iface.networkCidr,
-        });
-        return acc;
-      }, {} as Record<string, Array<{ name: string; ip?: string; network?: string }>>);
-
-      const initialNodes: Node<CustomNodeData>[] = designData.devices.map((device) => ({
-        id: device.deviceId,
-        type: 'custom',
-        position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
-        data: {
-          device,
-          interfaces: deviceInterfaces[device.deviceId] || [],
-        },
-      }));
-
-      const initialEdges: Edge<CustomEdgeData>[] = designData.links.map((link) => ({
-        id: link.linkId,
-        source: link.sourceDeviceId,
-        target: link.targetDeviceId,
-        type: 'custom',
-        data: { link },
-        label: link.networkCidr,
-        labelStyle: { fontSize: 10, fill: '#64748b', fontWeight: 500 },
-        labelBgStyle: { fill: 'white', fillOpacity: 0.9, padding: 2, borderRadius: 4 },
-        style: MEDIUM_STYLES[link.medium],
-      }));
-
-      setNodes(initialNodes);
-      setEdges(initialEdges);
-    } catch (err) {
-      console.error('Failed to load topology:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [setNodes, setEdges]);
+  const [running, setRunning] = useState(true);
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
+  const [failedLink, setFailedLink] = useState('');
+  const [duration, setDuration] = useState(2);
+  const [selected, setSelected] = useState<Device | null>(null);
 
   useEffect(() => {
-    fetchTopology();
-  }, [fetchTopology]);
+    designsApi.list().then((designs) => {
+      const first = designs[0];
+      if (first) {
+        setDesign(first);
+        const requestedLink = searchParams.get('failedLink');
+        setFailedLink(first.links.some((link) => link.linkId === requestedLink) ? requestedLink! : '');
+        const routers = first.devices.filter((device) => device.type === 'router');
+        setSource(routers[0]?.deviceId ?? first.devices[0]?.deviceId ?? '');
+        setDestination(routers[routers.length - 1]?.deviceId ?? first.devices[first.devices.length - 1]?.deviceId ?? '');
+      }
+    }).catch((err: Error) => setError(err.message)).finally(() => setLoading(false));
+  }, [searchParams]);
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      setEdges((eds) => addEdge({ ...connection, type: 'custom' }, eds));
-    },
-    [setEdges]
-  );
+  const route = useMemo(() => design ? findPath(design.links, source, destination, failedLink) : null, [design, source, destination, failedLink]);
+  const nodes: DeviceNodeType[] = useMemo(() => design ? layoutDevices(design).map(({ device, position }) => ({
+    id: device.deviceId, type: 'device', position,
+    data: { device, addresses: design.interfaces.filter((iface) => iface.deviceId === device.deviceId).map((iface) => iface.ipAddress ?? iface.networkCidr ?? '') },
+  })) : [], [design]);
+  const edges: PacketEdgeType[] = useMemo(() => design ? design.links.map((link) => {
+    const failed = failedLink === link.linkId;
+    const active = Boolean(route?.includes(link.linkId));
+    let current = source;
+    for (const id of route ?? []) {
+      if (id === link.linkId) break;
+      const previous = design.links.find((item) => item.linkId === id)!;
+      current = previous.sourceDeviceId === current ? previous.targetDeviceId : previous.sourceDeviceId;
+    }
+    const reverse = active && current !== link.sourceDeviceId;
+    return { id: link.linkId, source: reverse ? link.targetDeviceId : link.sourceDeviceId, target: reverse ? link.sourceDeviceId : link.targetDeviceId, type: 'packet', label: link.networkCidr,
+      data: { active: running && active && !failed, duration },
+      style: { stroke: failed ? '#dc2626' : active ? '#52525b' : '#d4d4d8', strokeWidth: active ? 2.5 : 1.5, strokeDasharray: failed ? '5 5' : undefined },
+    };
+  }) : [], [design, failedLink, route, source, running, duration]);
+  const hostname = (id: string) => design?.devices.find((device) => device.deviceId === id)?.hostname ?? id;
 
-  const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node<CustomNodeData>) => {
-      setSelectedNode(node.data);
-      setSelectedEdge(null);
-    },
-    []
-  );
+  if (loading) return <div className="h-64 flex items-center justify-center" role="status"><span className="spinner" /><span className="sr-only">Loading topology</span></div>;
+  if (error || !design) return <Card><div className="p-6" role="alert">{error || 'No design found. Seed the database or save a design in VLSM Studio.'}</div></Card>;
 
-  const onEdgeClick = useCallback(
-    (_event: React.MouseEvent, edge: Edge<CustomEdgeData>) => {
-      setSelectedEdge(edge.data);
-      setSelectedNode(null);
-    },
-    []
-  );
-
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="h-[calc(100vh-200px)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
-
-  if (!design) {
-    return (
-      <Card className="h-[calc(100vh-200px)] flex items-center justify-center">
-        <p className="text-slate-500">No design loaded</p>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="h-[calc(100vh-200px)] rounded-xl border border-slate-200 overflow-hidden bg-white">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
-        onClick={onPaneClick}
-        nodeTypes={{ custom: DeviceNode }}
-        edgeTypes={{ custom: LinkEdge }}
-        fitView
-        attributionPosition="bottom-left"
-      >
-        <Background color="#e2e8f0" gap={20} />
-        <Controls />
-        <MiniMap
-          nodeColor={(node) => DEVICE_COLORS[(node.data as CustomNodeData)?.device?.type as keyof typeof DEVICE_COLORS]?.bg || '#64748b'}
-          maskColor="rgba(255,255,255,0.8)"
-        />
-        <Legend design={design} />
-      </ReactFlow>
-
-      {(selectedNode || selectedEdge) && (
-        <Panel position="right" className="w-80 bg-white border-l border-slate-200 p-4 overflow-y-auto">
-          {selectedNode && (
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Node Details</h4>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Hostname</p>
-                  <p className="font-medium text-slate-900">{selectedNode.device.hostname}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Type</p>
-                  <p className="capitalize text-slate-700">{selectedNode.device.type}</p>
-                </div>
-                {selectedNode.device.model && (
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Model</p>
-                    <p className="text-slate-700">{selectedNode.device.model}</p>
-                  </div>
-                )}
-                {selectedNode.device.managementIp && (
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Management IP</p>
-                    <p className="font-mono text-sm text-slate-700">{selectedNode.device.managementIp}</p>
-                  </div>
-                )}
-                {selectedNode.interfaces.length > 0 && (
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Interfaces</p>
-                    <div className="space-y-2">
-                      {selectedNode.interfaces.map((iface) => (
-                        <div key={iface.name} className="p-2 bg-slate-50 rounded-lg text-sm">
-                          <p className="font-mono text-slate-900">{iface.name}</p>
-                          {iface.ip && <p className="font-mono text-blue-600">{iface.ip}</p>}
-                          {iface.network && <p className="text-xs text-slate-500">{iface.network}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {selectedEdge && (
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Link Details</h4>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Network</p>
-                  <p className="font-mono text-sm text-slate-900">{selectedEdge.link.networkCidr}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Medium</p>
-                  <p className="capitalize text-slate-700">{selectedEdge.link.medium}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Source</p>
-                  <p className="text-slate-700">{selectedEdge.link.sourceDeviceId} / {selectedEdge.link.sourceInterface}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Target</p>
-                  <p className="text-slate-700">{selectedEdge.link.targetDeviceId} / {selectedEdge.link.targetInterface}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </Panel>
-      )}
+  return <div className="space-y-5">
+    <div className="flex items-center justify-between flex-wrap gap-3">
+      <div><p className="eyebrow mb-2">THE NETWORK, IN MOTION</p><h2 className="text-2xl font-medium tracking-tight text-slate-900">Explore every connection.</h2><p className="text-sm text-slate-500 mt-1">Select devices, follow a route, or take a link offline.</p></div>
+      <Badge variant="neutral">Educational simulation</Badge>
     </div>
-  );
+    <Card><div className="card-body simulation-toolbar">
+      <label>From<select aria-label="Source device" className="input" value={source} onChange={(e) => setSource(e.target.value)}>{design.devices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.hostname}</option>)}</select></label>
+      <label>To<select aria-label="Destination device" className="input" value={destination} onChange={(e) => setDestination(e.target.value)}>{design.devices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.hostname}</option>)}</select></label>
+      <label>Link state<select aria-label="Failed link" className="input" value={failedLink} onChange={(e) => setFailedLink(e.target.value)}><option value="">All links healthy</option>{design.links.map((link) => <option key={link.linkId} value={link.linkId}>{hostname(link.sourceDeviceId)} ↔ {hostname(link.targetDeviceId)} offline</option>)}</select></label>
+      <label>Speed<select aria-label="Simulation speed" className="input" value={duration} onChange={(e) => setDuration(Number(e.target.value))}><option value={4}>0.5×</option><option value={2}>1×</option><option value={1}>2×</option></select></label>
+      <Button onClick={() => setRunning(!running)}>{running ? 'Pause simulation' : 'Resume simulation'}</Button>
+      <Button variant="secondary" onClick={() => { setFailedLink(''); setRunning(true); setDuration(2); }}>Reset</Button>
+    </div></Card>
+    <div className="simulation-canvas" aria-label="Interactive network topology">
+      <ReactFlow defaultNodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: .22 }} nodesConnectable={false} edgesReconnectable={false} onNodeClick={(_event, node) => setSelected(node.data.device)} onPaneClick={() => setSelected(null)} minZoom={.2}>
+        <Background color="#dedee3" gap={22} size={1} /><Controls showInteractive={false} />
+      </ReactFlow>
+    </div>
+    <div className="simulation-readout" role="status" aria-live="polite">
+      <div><p className="eyebrow mb-1">{running ? 'SIMULATION RUNNING' : 'SIMULATION PAUSED'}</p><p className="font-medium">{hostname(source)} → {hostname(destination)}</p></div>
+      <Badge variant={route ? 'success' : 'error'}>{route ? `Reachable · ${route.length} hops` : 'Unreachable · no alternate path'}</Badge>
+      <p className="text-xs text-slate-500">{failedLink ? 'Link removed from route calculation. Restore it to reconnect.' : 'Moving dots show the selected path. Drag devices to explore.'}</p>
+    </div>
+    {selected && <Card><div className="card-body"><h3 className="font-semibold">{selected.hostname} <span className="font-normal text-slate-500">/ {selected.model ?? selected.type}</span></h3><div className="flex flex-wrap gap-3 mt-3">{design.interfaces.filter((iface) => iface.deviceId === selected.deviceId).map((iface) => <code key={iface.interfaceName} className="bg-slate-100 px-3 py-2 rounded-lg text-xs">{iface.interfaceName} · {iface.ipAddress ?? 'Unassigned'} · {iface.networkCidr}</code>)}</div></div></Card>}
+    <p className="text-xs text-slate-500">This graph models reachability from the saved links. It does not send real packets or emulate OSPF convergence timers. Use Packet Tracer to validate the router configuration.</p>
+  </div>;
 };

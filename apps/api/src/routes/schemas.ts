@@ -1,14 +1,21 @@
 import { z } from 'zod';
 
+const cidr = z.string().refine((value) => {
+  const [ip, prefix] = value.split('/');
+  return /^\d{1,3}(\.\d{1,3}){3}\/(\d|[12]\d|3[0-2])$/.test(value) &&
+    ip!.split('.').every((octet) => Number(octet) <= 255) && Number(prefix) <= 32;
+}, 'Invalid IPv4 CIDR');
+
 export const createDesignSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(100),
     description: z.string().max(500).optional(),
-    parentCidr: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/),
+    parentCidr: cidr,
     departments: z.array(
       z.object({
         name: z.string().min(1).max(50),
         hostRequirement: z.number().int().positive(),
+        reservedCapacity: z.number().int().nonnegative().optional(),
       })
     ).min(1),
     devices: z.array(
@@ -55,11 +62,12 @@ export const updateDesignSchema = z.object({
     name: z.string().min(1).max(100).optional(),
     description: z.string().max(500).optional(),
     version: z.string().optional(),
-    parentCidr: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/).optional(),
+    parentCidr: cidr.optional(),
     departments: z.array(
       z.object({
         name: z.string(),
         hostRequirement: z.number().int().positive(),
+        reservedCapacity: z.number().int().nonnegative().optional(),
         networkCidr: z.string(),
         gateway: z.string(),
         subnetMask: z.string(),
@@ -111,7 +119,7 @@ export const designIdSchema = z.object({
 
 export const vlsmCalculateSchema = z.object({
   body: z.object({
-    parentCidr: z.string().regex(/^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/),
+    parentCidr: cidr,
     departments: z.array(
       z.object({
         name: z.string().min(1),
@@ -171,4 +179,18 @@ export const scenarioIdSchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/),
   }),
+});
+
+export const scenarioFiltersSchema = z.object({
+  query: z.object({ designId: z.string().regex(/^[0-9a-fA-F]{24}$/) }),
+});
+
+export const updateTestSchema = z.object({
+  params: testIdSchema.shape.params,
+  body: createTestSchema.shape.body.omit({ designId: true }).partial(),
+});
+
+export const updateScenarioSchema = z.object({
+  params: scenarioIdSchema.shape.params,
+  body: createScenarioSchema.shape.body.omit({ designId: true }).partial(),
 });

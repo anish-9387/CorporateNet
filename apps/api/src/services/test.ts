@@ -1,4 +1,4 @@
-import { TestRunModel, ITestRun, TestStatus, EvidenceType } from '../models';
+import { NetworkDesignModel, TestRunModel, ITestRun, TestStatus, EvidenceType } from '../models';
 import { AppError } from '../utils/errors';
 
 export interface CreateTestInput {
@@ -29,6 +29,7 @@ export const testService = {
       throw AppError.badRequest('Invalid design ID format');
     }
 
+    if (!await NetworkDesignModel.exists({ _id: input.designId })) throw AppError.notFound('Design not found');
     const test = new TestRunModel({
       ...input,
       testedAt: input.testedAt ?? new Date(),
@@ -65,7 +66,7 @@ export const testService = {
     const offset = filters.offset ?? 0;
 
     const [tests, total] = await Promise.all([
-      TestRunModel.find(query).sort({ testedAt: -1 }).skip(offset).limit(limit).lean<ITestRun[]>().exec(),
+      TestRunModel.find(query).sort({ testedAt: -1, _id: -1 }).skip(offset).limit(limit).lean<ITestRun[]>().exec(),
       TestRunModel.countDocuments(query),
     ]);
 
@@ -76,7 +77,7 @@ export const testService = {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw AppError.badRequest('Invalid test ID format');
     }
-    return TestRunModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean<ITestRun>().exec();
+    return TestRunModel.findByIdAndUpdate(id, { ...input, testedAt: input.testedAt ?? new Date() }, { new: true, runValidators: true }).lean<ITestRun>().exec();
   },
 
   async delete(id: string): Promise<boolean> {
@@ -88,14 +89,14 @@ export const testService = {
   },
 
   async getConnectivityMatrix(designId: string): Promise<Record<string, Record<string, TestStatus>>> {
-    const { tests } = await this.findAll({ designId, limit: 1000 });
+    if (!designId.match(/^[0-9a-fA-F]{24}$/)) throw AppError.badRequest('Invalid design ID format');
+    const tests = await TestRunModel.find({ designId, testType: 'ping' }).sort({ testedAt: -1, _id: -1 }).lean<ITestRun[]>().exec();
     const matrix: Record<string, Record<string, TestStatus>> = {};
 
     for (const test of tests) {
       if (!matrix[test.source]) matrix[test.source] = {};
       if (!matrix[test.destination]) matrix[test.destination] = {};
-      (matrix[test.source] as Record<string, TestStatus>)[test.destination] = test.status;
-      (matrix[test.destination] as Record<string, TestStatus>)[test.source] = test.status;
+      (matrix[test.source] as Record<string, TestStatus>)[test.destination] ??= test.status;
     }
 
     return matrix;

@@ -1,16 +1,18 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
 export const Layout: React.FC = () => {
+  const location = useLocation();
   return (
-    <div className="min-h-screen flex">
+    <div className="app-shell min-h-screen flex">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <Sidebar />
-      <div className="flex-1 ml-64 min-w-0">
+      <div className="workspace flex-1 min-w-0">
         <Header />
-        <main className="p-6" role="main">
-          <Outlet />
+        <main id="main-content" className="workspace-content" tabIndex={-1}>
+          <div key={location.pathname} className="page-enter"><Outlet /></div>
         </main>
       </div>
     </div>

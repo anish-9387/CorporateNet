@@ -154,7 +154,7 @@ describe('Tests API', () => {
 
   it('POST /api/v1/designs/:id/tests creates test', async () => {
     const res = await request(app)
-      .post('/api/v1/designs/tests')
+      .post('/api/v1/tests')
       .send({
         designId,
         testType: 'ping',
@@ -171,7 +171,7 @@ describe('Tests API', () => {
 
   it('GET /api/v1/designs/:id/tests lists tests', async () => {
     await request(app)
-      .post('/api/v1/designs/tests')
+      .post('/api/v1/tests')
       .send({
         designId,
         testType: 'ping',
@@ -181,15 +181,15 @@ describe('Tests API', () => {
         evidenceType: 'packet-tracer-ping',
       });
 
-    const res = await request(app).get(`/api/v1/designs/tests?designId=${designId}`).expect(200);
+    const res = await request(app).get(`/api/v1/tests?designId=${designId}`).expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBe(1);
+    expect(res.body.data.tests).toHaveLength(1);
   });
 
   it('GET /api/v1/designs/:id/tests/matrix returns connectivity matrix', async () => {
     await request(app)
-      .post('/api/v1/designs/tests')
+      .post('/api/v1/tests')
       .send({
         designId,
         testType: 'ping',
@@ -199,7 +199,7 @@ describe('Tests API', () => {
         evidenceType: 'packet-tracer-ping',
       });
 
-    const res = await request(app).get(`/api/v1/designs/tests/matrix?designId=${designId}`).expect(200);
+    const res = await request(app).get(`/api/v1/tests/matrix?designId=${designId}`).expect(200);
 
     expect(res.body.success).toBe(true);
     expect(res.body.data['10.0.0.10']['10.0.0.20']).toBe('passed');
@@ -208,6 +208,7 @@ describe('Tests API', () => {
 
 describe('Scenarios API', () => {
   let designId: string;
+  let failedLinkId: string;
 
   beforeEach(async () => {
     const res = await request(app)
@@ -222,15 +223,16 @@ describe('Scenarios API', () => {
         ospf: { processId: 1, areas: [0], routerIds: { R1: '1.1.1.1', R2: '2.2.2.2' } },
       });
     designId = res.body.data._id;
+    failedLinkId = res.body.data.links[0].linkId;
   });
 
-  it('POST /api/v1/designs/scenarios creates scenario', async () => {
+  it('POST /api/v1/scenarios creates scenario', async () => {
     const res = await request(app)
-      .post('/api/v1/designs/scenarios')
+      .post('/api/v1/scenarios')
       .send({
         designId,
         name: 'Link Failure',
-        failedLinkId: 'link-1',
+        failedLinkId,
         affectedNetworks: ['10.0.0.0/26'],
         expectedBehavior: 'Network unreachable',
       })
@@ -241,21 +243,21 @@ describe('Scenarios API', () => {
     expect(res.body.data.isEducationalSimulation).toBe(true);
   });
 
-  it('GET /api/v1/designs/scenarios lists scenarios', async () => {
+  it('GET /api/v1/scenarios lists scenarios', async () => {
     await request(app)
-      .post('/api/v1/designs/scenarios')
+      .post('/api/v1/scenarios')
       .send({
         designId,
         name: 'Link Failure',
-        failedLinkId: 'link-1',
+        failedLinkId,
         affectedNetworks: ['10.0.0.0/26'],
         expectedBehavior: 'Network unreachable',
       });
 
-    const res = await request(app).get(`/api/v1/designs/scenarios?designId=${designId}`).expect(200);
+    const res = await request(app).get(`/api/v1/scenarios?designId=${designId}`).expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBe(1);
+    expect(res.body.data).toHaveLength(1);
   });
 });
 
@@ -265,5 +267,53 @@ describe('Health Check', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data.status).toBe('ok');
+  });
+});
+
+describe('API contract regressions', () => {
+  let designId: string;
+  beforeEach(async () => {
+    const response = await request(app).post('/api/v1/designs').send({
+      name: 'Regression design', parentCidr: '192.168.1.0/24',
+      departments: [{ name: 'Engineering', hostRequirement: 50 }, { name: 'Finance', hostRequirement: 25 }],
+      devices: [{ hostname: 'R1', type: 'router' }], interfaces: [], links: [],
+      ospf: { processId: 1, areas: [0], routerIds: { R1: '1.1.1.1' } },
+    }).expect(201);
+    designId = response.body.data._id;
+  });
+
+  it('lists scenarios by query, validates updates, and returns consistent missing-record errors', async () => {
+    await request(app).get(`/api/v1/scenarios?designId=${designId}`).expect(200);
+    await request(app).get('/api/v1/scenarios').expect(422);
+    const response = await request(app).post('/api/v1/tests').send({ designId, testType: 'ping', source: 'Engineering', destination: 'Finance', status: 'passed', evidenceType: 'manual' }).expect(201);
+    await request(app).patch(`/api/v1/tests/${response.body.data._id}`).send({ status: 'invented' }).expect(422);
+    const missing = await request(app).get('/api/v1/designs/507f1f77bcf86cd799439011').expect(404);
+    expect(missing.body.success).toBe(false);
+    await request(app).post('/api/v1/tests').send({ designId: '507f1f77bcf86cd799439011', testType: 'ping', source: 'A', destination: 'B', status: 'passed', evidenceType: 'manual' }).expect(404);
+  });
+
+  it('keeps the newest directional ping result beyond the first 100 records', async () => {
+    await TestRunModel.insertMany(Array.from({ length: 110 }, (_, index) => ({ designId, testType: 'ping', source: index < 2 ? 'Engineering' : `Source ${index}`, destination: 'Finance', status: index === 1 ? 'failed' : 'passed', evidenceType: 'manual', testedAt: new Date(2026, 0, 1, 0, 0, index) })));
+    const matrix = await request(app).get(`/api/v1/tests/matrix?designId=${designId}`).expect(200);
+    expect(matrix.body.data.Engineering.Finance).toBe('failed');
+    expect(matrix.body.data.Finance.Engineering).toBeUndefined();
+    const list = await request(app).get(`/api/v1/tests?designId=${designId}&limit=5&offset=2`).expect(200);
+    expect(list.body.data.tests).toHaveLength(5);
+    expect(list.body.data.total).toBe(110);
+  });
+
+  it('exports actual markdown and removes dependent records with the design', async () => {
+    await request(app).post('/api/v1/tests').send({ designId, testType: 'ping', source: 'Engineering', destination: 'Finance', status: 'passed', evidenceType: 'manual' }).expect(201);
+    const report = await request(app).get(`/api/v1/designs/${designId}/report?format=markdown`).expect(200);
+    expect(report.headers['content-type']).toContain('text/markdown');
+    expect(report.text).toContain('# Regression design');
+    expect(report.text).toContain('Engineering');
+    await request(app).delete(`/api/v1/designs/${designId}`).expect(200);
+    expect(await TestRunModel.countDocuments({ designId })).toBe(0);
+  });
+
+  it('rejects bad IPv4 input and malformed JSON without crashing', async () => {
+    await request(app).post('/api/v1/vlsm/calculate').send({ parentCidr: '999.1.1.0/24', departments: [{ name: 'A', hostCount: 10 }] }).expect(422);
+    await request(app).post('/api/v1/tests').set('Content-Type', 'application/json').send('{').expect(400);
   });
 });

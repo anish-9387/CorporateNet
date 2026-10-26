@@ -3,6 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Button } from './Button';
 
 describe('Button', () => {
+  it('renders a link through asChild without crashing the page', () => {
+    render(<Button asChild><a href="/topology">Open simulation <span>↗</span></a></Button>);
+    expect(screen.getByRole('link', { name: /open simulation/i })).toHaveAttribute('href', '/topology');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
   it('renders children', () => {
     render(<Button>Click me</Button>);
     expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument();

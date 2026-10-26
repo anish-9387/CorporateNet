@@ -19,21 +19,26 @@ export const VLSMStudio: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [savedDesign, setSavedDesign] = useState<NetworkDesign | null>(null);
 
-  const calculate = async () => {
+  useEffect(() => {
+    let active = true;
     setLoading(true);
     setError(null);
-    try {
-      const response = await designsApi.calculateVLSM(parentCidr, departments);
-      setResult(response);
-      if (!response.isValid) {
-        setError(response.errors.join('; '));
+    setResult(null);
+    setSavedDesign(null);
+    const timer = setTimeout(async () => {
+      try {
+        const response = await designsApi.calculateVLSM(parentCidr, departments);
+        if (!active) return;
+        setResult(response);
+        if (!response.isValid) setError(response.errors.join('; '));
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Calculation failed');
+      } finally {
+        if (active) setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Calculation failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [parentCidr, departments]);
 
   const handleSaveDesign = async () => {
     if (!result?.isValid) return;
@@ -41,22 +46,22 @@ export const VLSMStudio: React.FC = () => {
       setLoading(true);
       const design = await designsApi.create({
         name: 'CorporateNet Design',
-        description: 'VLSM calculated design',
+        description: 'VLSM design with one core router and one access switch per department',
         parentCidr,
-        departments: departments.map((d) => ({ name: d.name, hostRequirement: d.hostCount })),
+        departments: departments.map((d) => ({ name: d.name, hostRequirement: d.hostCount, reservedCapacity: d.reservedCapacity })),
         devices: [
           { hostname: 'R1', type: 'router' },
-          { hostname: 'R2', type: 'router' },
-          { hostname: 'R3', type: 'router' },
-          { hostname: 'SW-Eng', type: 'switch' },
-          { hostname: 'SW-Admin', type: 'switch' },
-          { hostname: 'SW-Fin', type: 'switch' },
-          { hostname: 'SW-HR', type: 'switch' },
-          { hostname: 'SW-IT', type: 'switch' },
+          ...departments.map((_d, index) => ({ hostname: `SW-${index + 1}`, type: 'switch' })),
         ],
-        interfaces: [],
-        links: [],
-        ospf: { processId: 1, areas: [0], routerIds: { R1: '1.1.1.1', R2: '2.2.2.2', R3: '3.3.3.3' } },
+        interfaces: departments.map((d, index) => {
+          const subnet = result.subnets.find((s) => s.name === d.name)!;
+          return { deviceId: 'R1', interfaceName: `G0/${index}`, ipAddress: subnet.gateway, subnetMask: subnet.subnetMask, networkCidr: `${subnet.networkAddress}/${subnet.prefix}`, passiveOspf: true };
+        }),
+        links: departments.map((d, index) => {
+          const subnet = result.subnets.find((s) => s.name === d.name)!;
+          return { sourceDeviceId: 'R1', sourceInterface: `G0/${index}`, targetDeviceId: `SW-${index + 1}`, targetInterface: 'G0/1', networkCidr: `${subnet.networkAddress}/${subnet.prefix}`, medium: 'ethernet' };
+        }),
+        ospf: { processId: 1, areas: [0], routerIds: { R1: '1.1.1.1' } },
       });
       setSavedDesign(design);
     } catch (err) {
@@ -65,10 +70,6 @@ export const VLSMStudio: React.FC = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    calculate();
-  }, [parentCidr, departments]);
 
   const addDepartment = () => {
     setDepartments([...departments, { name: `Dept ${departments.length + 1}`, hostCount: 10 }]);
@@ -111,10 +112,10 @@ export const VLSMStudio: React.FC = () => {
                 helperText="Base network for all allocations"
               />
               <div className="flex items-end">
-                <label className="label w-full">Total Hosts Required</label>
+                <p className="text-sm text-slate-500">Total hosts: <strong className="text-slate-900">{totalHosts}</strong></p>
               </div>
               <div className="flex items-end">
-                <label className="label w-full">Address Utilization</label>
+                <p className="text-sm text-slate-500">Host capacity used: <strong className="text-slate-900">{utilization}%</strong></p>
               </div>
             </div>
 
@@ -125,27 +126,12 @@ export const VLSMStudio: React.FC = () => {
                   Add Department
                 </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                <div className="col-span-12 md:col-span-4">
-                  <Input label="Name" placeholder="Department name" />
-                </div>
-                <div className="col-span-12 md:col-span-3">
-                  <Input label="Host Count" type="number" placeholder="50" />
-                </div>
-                <div className="col-span-12 md:col-span-3">
-                  <Input label="Reserved (optional)" type="number" placeholder="5" />
-                </div>
-                <div className="col-span-12 md:col-span-2 flex items-end">
-                  <Button variant="ghost" size="sm" className="w-full text-red-600 hover:bg-red-50">
-                    Remove
-                  </Button>
-                </div>
-              </div>
+              <div className="hidden md:grid grid-cols-12 gap-3 text-xs text-slate-500"><span className="col-span-4">Department</span><span className="col-span-3">Hosts</span><span className="col-span-3">Reserved capacity</span></div>
               {departments.map((dept, index) => (
                 <div key={index} className="grid grid-cols-12 gap-3">
                   <div className="col-span-12 md:col-span-4">
                     <Input
-                      value={dept.name}
+                      aria-label={`Department ${index + 1} name`} value={dept.name}
                       onChange={(e) => updateDepartment(index, 'name', e.target.value)}
                     />
                   </div>
@@ -153,7 +139,7 @@ export const VLSMStudio: React.FC = () => {
                     <Input
                       type="number"
                       min="1"
-                      value={dept.hostCount}
+                      aria-label={`Hosts for ${dept.name}`} value={dept.hostCount}
                       onChange={(e) => updateDepartment(index, 'hostCount', parseInt(e.target.value) || 0)}
                     />
                   </div>
@@ -161,7 +147,7 @@ export const VLSMStudio: React.FC = () => {
                     <Input
                       type="number"
                       min="0"
-                      value={dept.reservedCapacity ?? 0}
+                      aria-label={`Reserved capacity for ${dept.name}`} value={dept.reservedCapacity ?? 0}
                       onChange={(e) => updateDepartment(index, 'reservedCapacity', parseInt(e.target.value) || 0)}
                     />
                   </div>
@@ -225,7 +211,7 @@ export const VLSMStudio: React.FC = () => {
               />
             </div>
             <p className="text-xs text-slate-500 text-center">
-              {utilization}% of address space utilized
+              {utilization}% of usable host capacity utilized
             </p>
           </div>
         </Card>
@@ -290,3 +276,4 @@ export const VLSMStudio: React.FC = () => {
     </div>
   );
 };
+

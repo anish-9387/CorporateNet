@@ -6,7 +6,7 @@ export const connectDatabase = async (): Promise<void> => {
   try {
     mongoose.set('strictQuery', true);
     await mongoose.connect(config.mongodbUri);
-    logger.info({ uri: config.mongodbUri }, 'MongoDB connected');
+    logger.info('MongoDB connected');
   } catch (error) {
     logger.error({ err: error }, 'MongoDB connection failed');
     throw error;
@@ -18,12 +18,3 @@ export const disconnectDatabase = async (): Promise<void> => {
   logger.info('MongoDB disconnected');
 };
 
-process.on('SIGINT', async () => {
-  await disconnectDatabase();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await disconnectDatabase();
-  process.exit(0);
-});

@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IDepartment {
   name: string;
   hostRequirement: number;
+  reservedCapacity?: number;
   networkCidr: string;
   gateway: string;
   subnetMask: string;
@@ -58,6 +59,7 @@ export interface INetworkDesign extends Document {
 const departmentSchema = new Schema<IDepartment>({
   name: { type: String, required: true, trim: true },
   hostRequirement: { type: Number, required: true, min: 1 },
+  reservedCapacity: { type: Number, min: 0 },
   networkCidr: { type: String, required: true },
   gateway: { type: String, required: true },
   subnetMask: { type: String, required: true },
