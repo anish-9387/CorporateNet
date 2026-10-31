@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/': { title: 'Overview', description: 'Network design summary and key metrics' },
   '/topology': { title: 'Topology Explorer', description: 'Interactive network topology visualization' },
+  '/simulation': { title: 'Project Presentation', description: 'The completed 43-device Packet Tracer network' },
   '/vlsm': { title: 'VLSM Studio', description: 'Calculate and visualize subnet allocations' },
   '/routing': { title: 'Routing Lab', description: 'OSPF routes, neighbors, and evidence' },
   '/diagnostics': { title: 'Diagnostics', description: 'Connectivity tests and validation evidence' },
@@ -16,6 +17,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const [connected, setConnected] = useState<boolean | null>(null);
   useEffect(() => {
+    if (location.pathname === '/simulation') return;
     api.get('/health').then(() => setConnected(true)).catch(() => setConnected(false));
   }, [location.pathname]);
   const pageInfo = pageTitles[location.pathname] ?? { title: 'CorporateNet', description: '' };
@@ -34,10 +36,10 @@ export const Header: React.FC = () => {
         <span className="text-sm text-slate-500 hidden sm:block">
           Educational workspace
         </span>
-        <span role="status" className="connection-status">
+        {location.pathname === '/simulation' ? <span className="connection-status"><span className="status-dot connected" />Offline-ready demo</span> : <span role="status" className="connection-status">
           <span className={`status-dot ${connected ? 'connected' : ''}`} aria-hidden="true" />
           {connected === null ? 'Connecting' : connected ? 'API online' : 'API offline'}
-        </span>
+        </span>}
       </div>
     </header>
   );

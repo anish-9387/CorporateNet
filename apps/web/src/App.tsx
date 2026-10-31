@@ -7,6 +7,7 @@ import { Routing } from './pages/Routing';
 import { Diagnostics } from './pages/Diagnostics';
 import { Scenarios } from './pages/Scenarios';
 import { Reports } from './pages/Reports';
+import { Presentation } from './pages/Presentation';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
         <Route path="/topology" element={<Topology />} />
+        <Route path="/simulation" element={<Presentation />} />
         <Route path="/vlsm" element={<VLSMStudio />} />
         <Route path="/routing" element={<Routing />} />
         <Route path="/diagnostics" element={<Diagnostics />} />

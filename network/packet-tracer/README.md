@@ -1,6 +1,8 @@
 # Scalable Corporate Network — Packet Tracer topology
 
-Open `Scalable_Corporate_Network_CN.pkt` for the completed project. A working copy is also retained. The original file in the study-material directory is preserved. This is the supplied 43-device topology; the older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
+Open [Scalable_Corporate_Network_CN.pkt](Scalable_Corporate_Network_CN.pkt) for the completed 43-device project. The older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
+
+For the one-click browser walkthrough, run `npm run dev:web` from the repository root and open **http://localhost:5173/simulation → Present → Simulate**. It uses a manually transcribed 43-device/43-link model, requires no API/MongoDB and does not control this .pkt. See [the presentation outline](../../docs/presentation-outline.md), [speaking script](../../docs/present-to-sir.md) and [full address plan](../addressing/vlsm-plan.md).
 
 ## Addressing
 
@@ -16,6 +18,8 @@ Open `Scalable_Corporate_Network_CN.pkt` for the completed project. A working co
 | Simulated external server | 203.0.113.0/24 | 203.0.113.1 | ISP Fa0/0 → server4 |
 
 Corporate routed links use /30 masks:
+
+The five corporate routed /30s, department blocks and server /28 allocate **308 of 512 corporate addresses (60.2%)**; **204 remain unallocated (39.8%)**. ISP and private NAT segments are outside this total. This is allocated address space, not an active-client count.
 
 | Endpoints | Addresses |
 |---|---|
@@ -90,8 +94,12 @@ Packet Tracer does not implement the WLC Clients monitor page used during testin
 
 Core Fa0/2 (10.10.1.25/30) was administratively disabled. PC3 → server2 Simple PDU ICMP reported Successful while the second server link remained available. Core Fa0/2 was then restored to On, its line protocol returned up, and its OSPF neighbor 4.4.4.4 returned to FULL. This checks one failure after convergence, not zero packet loss or every failure scenario.
 
+The browser labels these example links “primary” and “backup”; those labels do not guarantee active/standby routing in the actual lab. Both routed links participate in OSPF and may provide equal-cost paths. Convergence time and load-balancing behavior were not measured.
+
 ## Test scope
 
 Representative wired, wireless, NAT, interdepartmental and ISP-to-corporate paths were checked, together with DHCP, DNS/HTTP and one redundant-link failure. Exhaustive all-client/all-pairs, load and security testing were not performed. Initial ARP/DHCP/OSPF convergence can cause the first packet to fail; allow convergence and retry.
 
 No Cisco-specific MCP connection was available in this session; the project was configured using Packet Tracer's native UI. All ISP and web services in this file are simulated.
+
+These are recorded session observations. A complete raw CLI/screenshot evidence bundle is not included, and this documentation update did not reopen or retest the lab. Collect any evidence required by your faculty using the commands in the run guide.

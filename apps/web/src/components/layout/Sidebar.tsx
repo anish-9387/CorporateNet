@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const navigation = [
   { path: '/', label: 'Overview', icon: HomeIcon },
+  { path: '/simulation', label: 'Present Project', icon: TopologyIcon },
   { path: '/topology', label: 'Topology', icon: TopologyIcon },
   { path: '/vlsm', label: 'VLSM Studio', icon: VLSMIcon },
   { path: '/routing', label: 'Routing Lab', icon: RoutingIcon },

@@ -1,192 +1,104 @@
-# CorporateNet Architecture Documentation
+# CorporateNet architecture
 
-## System Overview
+## Three separate artifacts
 
-CorporateNet is a full-stack network intelligence platform consisting of three primary components:
+| Artifact | Source of truth | Purpose | Required runtime |
+|---|---|---|---|
+| Completed network | `network/packet-tracer/Scalable_Corporate_Network_CN.pkt` | Configured 43-device protocol simulation | Cisco Packet Tracer 9.0.1 or compatible newer version |
+| Browser presentation | `apps/web/src/data/packetTracer.ts` | Manually transcribed topology and narrated path illustration | Vite/React; no API or MongoDB |
+| Saved-design dashboard | MongoDB NetworkDesign/TestRun/Scenario records | Calculations, editable designs, recorded observations and reports | Frontend + Express API + MongoDB |
 
-1. **Network Simulation Layer** — Cisco Packet Tracer (`.pkt`)
-2. **Backend API** — Node.js/Express/TypeScript with MongoDB
-3. **Frontend Dashboard** — Vite/React/TypeScript with React Flow
+The API seed in `apps/api/src/scripts/seed-data.ts` is the older R1–R2–R3 design with eight modeled devices and seven links. It is not automatically replaced by the completed lab. Saving a design in VLSM Studio does not alter the .pkt or the presentation model.
 
----
-
-## Data Flow
-
-```
-┌─────────────┐     REST/JSON      ┌─────────────┐
-│   Browser   │ ◄─────────────────► │  Frontend   │
-│  (React)    │     HTTPS/JSON      │  (Vite)     │
-└─────────────┘                     └──────┬──────┘
-                                            │
-                                    ┌───────▼───────┐
-                                    │    Backend    │
-                                    │  (Express)    │
-                                    └───────┬───────┘
-                                            │
-                                    ┌───────▼───────┐
-                                    │   MongoDB     │
-                                    │  (Database)   │
-                                    └───────────────┘
-
-Packet Tracer (.pkt) ──► Manual Config Export ──► Shared Dataset ──► Dashboard
-       ▲                                                                    │
-       └────────────────── CLI Evidence Import ◄────────────────────────────┘
+```mermaid
+flowchart LR
+  PKT[Completed Packet Tracer lab] -. Manual transcription .-> MODEL[Local typed presentation model]
+  MODEL --> PRESENT[Browser /simulation]
+  DASH[Other browser pages] <-- REST /api/v1 --> API[Express API]
+  API <--> DB[(MongoDB saved designs and records)]
 ```
 
----
+There is no live control or synchronization arrow between the browser/API and Packet Tracer. No Cisco-specific MCP connection was available in the configuration session; native UI configuration was used. No CLI evidence import/collector feature is implemented.
 
-## Component Details
+## Frontend
 
-### Frontend (apps/web)
+Stack: React 18, TypeScript, Vite 5, React Router, React Flow, Recharts and Tailwind/CSS. State uses React hooks; network requests use the typed Fetch client in `apps/web/src/api/client.ts`.
 
-**Stack:** Vite 5, React 18, TypeScript, React Router 6, React Flow, Recharts, Tailwind CSS (via custom CSS)
+| Route | Component / behavior | Data |
+|---|---|---|
+| `/simulation` | `Presentation.tsx`: guided 43-device walkthrough | Local model |
+| `/` | Overview | Latest selected/saved design data |
+| `/topology` | Source/destination paths, link removal, animation | Saved links |
+| `/vlsm` | Largest-first calculator; save a connected design | API |
+| `/routing` | Design-derived route/neighbor expectations and illustrative CLI | Saved interfaces/OSPF metadata |
+| `/diagnostics` | Directional ping-observation matrix and manual recording | TestRun records |
+| `/scenarios` | Documented failure scenarios | Scenario records |
+| `/reports` | Report generation and Markdown export | Saved design and records |
 
-**Pages:**
-- `/` — Overview Dashboard
-- `/topology` — Interactive Topology (React Flow)
-- `/vlsm` — VLSM Calculator & Studio
-- `/routing` — OSPF Routes & Evidence
-- `/diagnostics` — Connectivity Tests
-- `/scenarios` — Failure Simulations
-- `/reports` — Export & Documentation
+### Presentation implementation
 
-**State Management:** React hooks (useState, useEffect), React Query pattern via custom hooks
+- `data/packetTracer.ts` contains device names, positions, addresses, port links, five department cards and ten narrated stages.
+- `Presentation.tsx` owns timer/progress, pause/resume, replay/reset, expanded presentation mode and device inspection.
+- React Flow renders 43 devices and 43 physical/wireless links. Existing breadth-first `findPath` from `utils/simulation.ts` calculates example routes with one optional failed link.
+- Stages cover VLSM; DHCP request/response; OSPF overview; DNS query/reply; HTTP; ISP ICMP; server-link failure; recovery.
+- Packet dots advance between hops. Timings, route choice and failure recomputation are illustrative. The graph does not implement IOS forwarding, OSPF cost/timers/ECMP, DHCP broadcast fan-out, TCP, NAT or CAPWAP.
+- The “primary”/“backup” labels select an example failure path; they do not define an active/standby routing policy in the lab.
+- Presentation mode hides the surrounding dashboard; Escape exits. Reduced-motion styling removes packet movement. The header skips its API health request on `/simulation`.
 
-**API Client:** Fetch-based with typed responses, error handling, loading states
+### Saved-design topology
 
-### Backend (apps/api)
+`Topology.tsx` and `utils/simulation.ts` render the current saved design, calculate graph reachability and allow link-removal demonstrations. A chain design becomes partitioned when a bridge link is removed; the completed lab's parallel server links are a different case. Neither browser graph sends real packets.
 
-**Stack:** Node.js 20, Express 4, TypeScript, Mongoose 8, Zod, Helmet, Pino
+## Backend and persistence
 
-**Modules:**
-- `designs` — CRUD for network designs, VLSM calculation
-- `vlsm` — Subnet calculation engine (pure functions)
-- `topology` — Graph data transformation
-- `tests` — Test run recording, connectivity matrix
-- `scenarios` — Failure scenario management
-- `reports` — Markdown/JSON report generation
+Stack: Node.js 20+, Express, TypeScript, Mongoose, Zod, Pino, Helmet, CORS and rate limiting.
 
-**Middleware:**
-- `errorHandler` — Centralized error handling
-- `validate` — Zod schema validation
-- `rateLimit` — Express-rate-limit
-- `helmet` — Security headers
-- `cors` — Origin restriction
+- `src/routes/`: designs/VLSM, tests and scenarios routes.
+- `src/services/`: design operations, VLSM arithmetic, directional observations, scenarios and report generation.
+- `src/models/`: NetworkDesign with embedded department/device/interface/link arrays; TestRun and Scenario with design references.
+- `src/middleware/`: validation and centralized error handling.
+- `src/scripts/demo.ts`: disposable seeded MongoDB runtime; `seed.ts` seeds the configured persistent database.
 
-### Database (MongoDB)
+Test outcomes are recorded observations with evidence type and notes. The API does not execute ping or router commands. Metadata and illustrative CLI must not be treated as live verified state.
 
-**Collections:**
-- `networkdesigns` — Full design documents with embedded arrays
-- `testruns` — Individual test results with design reference
-- `scenarios` — Failure simulations with design reference
+### Main endpoints
 
-**Indexes:**
-- `networkdesigns`: name, createdAt
-- `testruns`: designId, testedAt, designId+testType
-- `scenarios`: designId, createdAt
+All paths below are relative to `/api/v1`.
 
----
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | API health response |
+| GET / POST | `/designs` | List / create designs |
+| GET / PATCH / DELETE | `/designs/:id` | Read / update / delete design |
+| POST | `/vlsm/calculate` | Calculate subnet allocation |
+| GET | `/designs/:id/topology` | Transform saved topology |
+| GET | `/designs/:id/routes` | Saved/derived routing information |
+| GET | `/designs/:id/report` | Report-ready design and observations |
+| GET / POST | `/tests` | List / record observations; designId in filter/body |
+| GET | `/tests/matrix?designId=...` | Latest directional ping outcomes |
+| GET / POST | `/scenarios` | List / create failure records; designId in filter/body |
 
-## VLSM Calculation Engine
+Individual `/tests/:id` and `/scenarios/:id` routes support GET/PATCH/DELETE. `/designs/vlsm/calculate` is also implemented as an alias of `/vlsm/calculate`. Successful JSON responses use `{ success: true, data, meta }`; errors use `{ success: false, error: { code, message, details? } }`. `/designs/:id/report?format=markdown` returns Markdown text rather than JSON.
 
-**Location:** `apps/api/src/services/vlsm.ts`
+### VLSM
 
-**Algorithm:**
-1. Parse parent CIDR → network address + prefix
-2. Sort departments by (hostCount + reserved) descending
-3. For each department:
-   - Calculate required prefix: `32 - ceil(log2(hosts + 2))`
-   - Align to network boundary
-   - Check overlap with existing allocations
-   - Check parent boundary
-4. Return sorted results with metadata
+The API engine is `apps/api/src/services/vlsm.ts`. It parses IPv4/CIDR, sorts requested-plus-reserved capacity largest-first, includes network/broadcast addresses, aligns each block, checks bounds/overlap and decomposes remaining space. Invalid/insufficient allocations return errors. The frontend has calculator helpers and regression tests; calculator results do not push configuration to lab devices.
 
-**Key Functions:**
-- `calculateVLSM(parentCidr, inputs)` — Main entry point
-- `validateSubnetAllocation(parentCidr, subnets)` — Validation
-- `ipToNumber/numberToIp` — IPv4 arithmetic
-- `cidrToMask/cidrToWildcard` — Mask conversions
+## Running and building
 
----
-
-## API Contract
-
-**Base Path:** `/api/v1`
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": {},
-  "meta": {
-    "source": "design-dataset",
-    "verified": false,
-    "timestamp": "2026-10-11T12:00:00.000Z"
-  }
-}
+```powershell
+npm run dev:web                          # Presentation-only frontend
+npm run demo                             # API + frontend; temporary old seed
+npm run dev                              # API + frontend; configured database
+npm run build                            # Both workspaces
+npm run start --workspace=apps/api        # Built API only
+npm run preview --workspace=apps/web      # Built frontend preview
 ```
 
-**Error Format:**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid request data",
-    "details": [...]
-  }
-}
-```
+There is no root `npm run start` script. Vite proxies `/api` to localhost:3000 by default; `API_PROXY_TARGET` can override its target. `VITE_API_BASE_URL` defaults to `/api/v1`. Production serving/proxy/TLS configuration must be provided by the hosting environment; this repository has not been deployed as part of this work.
 
-**Status Codes:**
-- 200 OK
-- 201 Created
-- 400 Bad Request
-- 404 Not Found
-- 422 Validation Error
-- 500 Internal Error
+The API reads `MONGODB_URI`, `PORT`, `NODE_ENV`, `WEB_ORIGIN` and rate-limit settings. Keep database credentials in server environment files; never use a `VITE_*` variable for secrets. See [run-and-simulate](run-and-simulate.md) for non-overwriting setup commands.
 
----
+## Validation and limits
 
-## Security
-
-- **CORS:** Explicit origin allowlist (`WEB_ORIGIN`)
-- **Rate Limiting:** 100 req/15min per IP
-- **Headers:** Helmet (CSP, HSTS, X-Frame-Options, etc.)
-- **Validation:** Zod schemas on all inputs
-- **Secrets:** Environment variables only, never in code
-- **Database:** Least-privilege user, network restrictions
-
----
-
-## Deployment
-
-### Development
-```bash
-npm run dev          # Concurrent API + Web
-npm run dev:api      # API only (port 3000)
-npm run dev:web      # Web only (port 5173)
-```
-
-### Production Build
-```bash
-npm run build        # Build both workspaces
-npm run start        # Start API (requires built dist/)
-```
-
-### Environment
-- `NODE_ENV=production`
-- `MONGODB_URI` — MongoDB Atlas or managed instance
-- `WEB_ORIGIN` — Production frontend URL
-- `PORT` — API port (default 3000)
-
----
-
-## Extensibility Points
-
-1. **New Network Designs** — POST `/designs` with different topologies
-2. **Additional Protocols** — Extend `ospf` field in design model
-3. **Real-time Updates** — Add WebSocket for live topology
-4. **Authentication** — JWT-based auth middleware
-5. **Multi-tenancy** — Add `tenantId` to all models
-6. **Packet Tracer Integration** — Netmiko/SSH or gNMI collector service
+Frontend unit/component tests run with `npm run test --workspace=apps/web`. API unit/integration suites use a temporary MongoDB process. Rehearse browser interactions using [the presentation script](present-to-sir.md). Authentication, multi-tenancy, live telemetry, Packet Tracer integration, measured performance guarantees and real hardware support are not implemented or validated features.

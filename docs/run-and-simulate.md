@@ -1,74 +1,92 @@
 # Run and demonstrate CorporateNet
 
-## Fastest demo (no MongoDB installation)
+## One-click presentation — no database
 
-Install Node.js 20 or newer. In PowerShell:
+Requires Node.js 20+ and npm. In PowerShell:
 
 ```powershell
 cd "D:\CODING\Web Developing\CorporateNet"
 npm install
+npm run dev:web
+```
+
+Open **http://localhost:5173/simulation**. Use Vite's printed port if different. Click **Present → Simulate**. Ten narrated stages run in about one minute: VLSM; DHCP request/response; OSPF overview; DNS query/reply; HTTP; ISP ICMP; server-link failure; recovery.
+
+Use Pause/Resume while explaining, Replay simulation to restart, Reset to clear progress, and Escape to leave presentation mode. Zoom and click devices for port/address details. Keep the terminal running; Ctrl+C stops it. Install dependencies in advance so installation/network access does not interrupt the session.
+
+No API, MongoDB, Atlas account or Packet Tracer login is needed for this browser page. It uses a manually transcribed local model and does not control Packet Tracer or run IOS/protocol timers. The [presentation outline](presentation-outline.md) supplies slides/timing; [present-to-sir](present-to-sir.md) supplies the practical speaking script.
+
+## Open and animate the actual lab
+
+Open [Scalable_Corporate_Network_CN.pkt](../network/packet-tracer/Scalable_Corporate_Network_CN.pkt) in Packet Tracer 9.0.1 or a compatible newer version. No Node.js/MongoDB is needed for the .pkt itself.
+
+1. Select **Realtime** and allow DHCP, spanning tree and OSPF convergence. Fast-forward time if needed.
+2. Show **PC3 → Desktop → IP Configuration**: Finance /27, gateway 10.10.0.193, DNS 10.10.1.66. Observed lease was 10.10.0.194; leases can change.
+3. Open its Web Browser: `http://intranet.corporate.test`, then `http://www.isp.test`. These are simulated lab services.
+4. Close the device window; select **Simulation → Edit Filters → ARP + ICMP**. Use **Add Simple PDU** (closed envelope), click Laptop0 then PC3, and choose **Auto Capture/Play** or **Capture/Forward**. Click an event to inspect OSI/PDU details. Allow convergence and retry if the initial packet fails during ARP resolution.
+5. To show DHCP, enable its filter and change a client from Static to DHCP; step through Discover, Offer, Request, ACK.
+6. In Realtime, show core CLI `enable`, `show ip ospf neighbor`, `show ip route`; on west/east show `show ip dhcp binding`.
+7. If repeating failover, follow [the detailed script](present-to-sir.md): disable only core Fa0/2, test PC3 → server2 after convergence, then restore Fa0/2 and verify FULL adjacency. “Primary/backup” are browser labels, not guaranteed active/standby routing.
+
+Use a copy if you want to save demonstration changes. To discard changes, reopen the saved lab without saving. See [lab observations](../network/packet-tracer/README.md) and [the address plan](../network/addressing/vlsm-plan.md). Do not paste the older R1/R2/R3 text configurations into this topology.
+
+## Optional temporary database demo
+
+```powershell
 npm run demo
 ```
 
-Open http://localhost:5173. The demo starts a real, temporary MongoDB process, seeds the five-department / three-router network, and runs both servers. The first run needs internet access to download MongoDB. Stop both servers with Ctrl+C. Demo data disappears when the temporary database stops; use the persistent setup below to keep your work.
+This starts both servers and a real temporary MongoDB process, seeded with the **older R1–R2–R3 network** (eight modeled devices, seven links). First use may download a MongoDB binary. Data disappears when that process stops. Open http://localhost:5173 for the saved-design overview, or navigate directly to `/topology` to inspect this separate example. The overview's presentation button opens `/simulation`, not the saved-design graph.
 
-If port 3000 or 5173 is already occupied, stop that project's previous servers first. The Vite frontend proxies `/api` to the API. Prefer `VITE_API_BASE_URL=/api/v1` in `apps/web/.env` for local use.
+On `/topology`, R1 → R3 is a two-link chain path; removing R1–R2 partitions it. This chain failure is different from the completed lab's redundant server-link demonstration. Other pages let you calculate/save designs, inspect expected routing, record manual diagnostics, document failures and export a report. None sends real ping/IOS commands. Saving a design does not update the .pkt or `/simulation`.
 
-## Present the simulation
+## Persistent database dashboard
 
-1. Open **Overview** and explain the routers, five departmental subnets, and address utilization. Select **Open simulation**.
-2. In **Topology**, leave **From = R1**, **To = R3**, and **All links healthy**. Moving dots follow R1 → R2 → R3; the status reads **Reachable · 2 hops**.
-3. Use **Pause simulation**, **Resume simulation**, and **Speed**. Drag a device, zoom, and click a router to inspect its interfaces.
-4. Under **Link state**, choose **R1 ↔ R2 offline**. The failed link turns red and the route becomes **Unreachable**. The chain has no alternate route.
-5. Select **Reset** to restore connectivity. Try **SW-Eng → SW-IT** to follow traffic through access switches and routers.
-6. In **VLSM Studio**, change host requirements or reserved capacity. Allocation updates after a short pause. Invalid CIDRs or insufficient address space disable saving. **Save Design** creates a connected star design with one core router and an access switch per department. Other pages use the most recently created design. Restart the temporary demo to return to the original three-router network.
-7. In **Routing Lab**, inspect expected OSPF neighbors and choose a router in **Route Table**. CLI output is illustrative, not collected evidence.
-8. In **Diagnostics**, record a status, evidence type, and notes for a connectivity check. Notes save when you leave the field. These are recorded observations; the dashboard does not send real pings. **Mark All Passed** records a manual assessment.
-9. In **Failure Scenarios**, create a documented failure using an actual link from the dropdown. Use the Topology controls to demonstrate it visually.
-10. In **Reports**, select **Generate Report**, then **Export Markdown**.
-
-The web simulation models graph reachability. It does not emulate Cisco IOS, DHCP exchanges, packet timing, or OSPF convergence timers.
-
-## Persistent setup
-
-Install and run MongoDB locally, or provide your MongoDB connection string. Then:
+Run MongoDB locally or supply a working MongoDB URI. Preserve existing environment files:
 
 ```powershell
-Copy-Item apps/api/.env.example apps/api/.env
-Copy-Item apps/web/.env.example apps/web/.env
-# Edit apps/api/.env: set MONGODB_URI to your database.
+if (!(Test-Path apps/api/.env)) { Copy-Item apps/api/.env.example apps/api/.env }
+if (!(Test-Path apps/web/.env)) { Copy-Item apps/web/.env.example apps/web/.env }
+# Edit apps/api/.env: configure MONGODB_URI for your database.
+# For local proxy use, apps/web/.env can set VITE_API_BASE_URL=/api/v1.
 npm run db:seed
 npm run dev
 ```
 
-Keep existing `.env` files if already configured; the copy commands above are for a fresh checkout. The seed is repeatable: it preserves an existing starter design and repairs legacy hostname/device-ID references.
+The persistent seed preserves an existing starter design and repairs legacy hostname/device-ID references; it does not import the 43-device model. Use the temporary demo if you want disposable data.
 
-- Frontend: http://localhost:5173
-- API health: http://localhost:3000/api/v1/health
-- API base: http://localhost:3000/api/v1
+| Setting / URL | Default |
+|---|---|
+| Frontend | http://localhost:5173 |
+| API health | http://localhost:3000/api/v1/health |
+| API base | http://localhost:3000/api/v1 |
+| MONGODB_URI | mongodb://127.0.0.1:27017/corporatenet |
+| WEB_ORIGIN | http://localhost:5173 |
+| VITE_API_BASE_URL | /api/v1 when unset |
+| Vite API_PROXY_TARGET | http://localhost:3000 when unset |
+
+Never put a database URI/password into a VITE_* variable or shared documentation.
+
+## Build and verify
 
 ```powershell
-npm run build
-npm test
-npx playwright install chromium
-npm run test:e2e
+npm run build:web
+npm run test --workspace=apps/web
 ```
 
-Unit and integration tests start and clean up their own temporary database. Browser tests start a separate seeded API on port 3100 and a frontend on port 5174. They never use your configured persistent database. The first test run needs internet for the MongoDB binary; subsequent runs use its cache. Chromium installation is needed once per machine.
+Rehearse the browser manually: run the ten-stage sequence, pause/resume during a packet, replay, reset, inspect a device, and enter/exit presentation mode. Use the [speaking script](present-to-sir.md) for the demonstration sequence.
 
-## Cisco Packet Tracer demonstration
+For both workspaces: `npm run build` and `npm test`. API tests start/clean up their own temporary MongoDB; first use may require a binary download. Do not infer current backend results from older records.
 
-There is no `.pkt` file in this checkout. Build the topology manually in Packet Tracer using three Cisco 2911 routers and five access switches. Add serial modules with the routers powered off, connect R1—R2—R3, then connect Engineering and Administration to R1, Finance and HR to R2, and IT Support to R3.
+To preview the built frontend, use `npm run preview --workspace=apps/web` and its printed URL, adding `/simulation`. The built API starts with `npm run start --workspace=apps/api`; there is no root start script. Production hosting/TLS/proxy configuration is outside this local demo setup.
 
-Use the commands in `network/configs/R1.txt`, `R2.txt`, and `R3.txt`; adapt interface names and set `clock rate` on the DCE ends of serial links as appropriate for your cabling. Use `network/addressing/vlsm-plan.md` for addressing. Add one PC per department, connect it to its switch, and select DHCP.
+## Troubleshooting before presenting
 
-Validate on the routers:
-
-```text
-show ip interface brief
-show ip ospf neighbor
-show ip route ospf
-show ip dhcp binding
-```
-
-From a PC, ping a PC in another department and use `tracert <remote-PC-IP>`. In Packet Tracer **Simulation** mode, filter for ICMP and use **Add Simple PDU** between two PCs. Use **Auto Capture / Play** to show the packet traversing the network. To demonstrate failure, shut a serial interface, verify the lost adjacency and failed ping, then use `no shutdown` and recheck. Save your `.pkt` and actual CLI evidence separately.
+| Symptom | Action |
+|---|---|
+| Atlas SRV/DNS connection error | Use `npm run dev:web` and `/simulation` for the presentation; this page needs no database. For saved-design pages, correct the database/network configuration or use a working local URI/temporary demo. |
+| Overview reports API offline | Open `/simulation` for the local walkthrough, or start the API/database for saved-design pages. |
+| Vite uses a different port | Open its printed local URL with `/simulation`; if using the API directly, keep WEB_ORIGIN consistent. |
+| First Packet Tracer ping fails | Converge in Realtime and retry after ARP resolution; record retries honestly. |
+| Wireless DHCP absent | Check the correct SSID/security/key and controller/AP association, then request DHCP in the expected subnet. |
+| Diagram looks different from Overview | Expected: `/simulation` is the local 43-device model; other pages use the latest saved database design. |

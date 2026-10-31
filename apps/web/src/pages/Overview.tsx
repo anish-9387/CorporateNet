@@ -237,7 +237,7 @@ export const Overview: React.FC = () => {
         <h2>A little clarity.<br />Across every connection.</h2>
         <p className="text-slate-500 text-sm mt-4">Plan your address space, explore the topology, and see how your network responds — all in one workspace.</p>
         <div className="hero-action flex flex-wrap items-center gap-3 mt-6">
-          <Button asChild><Link to="/topology">Open simulation <span aria-hidden="true">↗</span></Link></Button>
+          <Button asChild><Link to="/simulation">Present Packet Tracer project <span aria-hidden="true">↗</span></Link></Button>
           <span className="text-xs text-slate-500 font-mono">{design.parentCidr} / OSPF area {design.ospf.areas.join(', ')}</span>
         </div>
       </div>
