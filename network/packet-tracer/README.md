@@ -1,6 +1,6 @@
 # Scalable Corporate Network — Packet Tracer topology
 
-Open `Scalable_Corporate_Network_CN-completed.pkt` for the completed project. A working copy is also retained. The original file in the study-material directory is preserved. This is the supplied 43-device topology; the older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
+Open `Scalable_Corporate_Network_CN.pkt` for the completed project. A working copy is also retained. The original file in the study-material directory is preserved. This is the supplied 43-device topology; the older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
 
 ## Addressing
 
