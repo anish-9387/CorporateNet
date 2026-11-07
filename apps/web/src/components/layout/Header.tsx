@@ -1,25 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { api } from '@/api/client';
+import React from 'react';
 import { useLocation } from 'react-router-dom';
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/': { title: 'Overview', description: 'Network design summary and key metrics' },
-  '/topology': { title: 'Topology Explorer', description: 'Interactive network topology visualization' },
-  '/simulation': { title: 'Project Presentation', description: 'The completed 43-device Packet Tracer network' },
-  '/vlsm': { title: 'VLSM Studio', description: 'Calculate and visualize subnet allocations' },
-  '/routing': { title: 'Routing Lab', description: 'OSPF routes, neighbors, and evidence' },
-  '/diagnostics': { title: 'Diagnostics', description: 'Connectivity tests and validation evidence' },
-  '/scenarios': { title: 'Failure Scenarios', description: 'Link failure simulations and analysis' },
-  '/reports': { title: 'Reports', description: 'Export design documentation and test results' },
+  '/simulation': { title: 'Guided Simulation', description: '10-step packet walkthrough of the 43-device network' },
+  '/topology': { title: 'Topology Explorer', description: 'Interactive network topology with path tracing' },
+  '/device-guide': { title: 'Device Guide', description: 'All 43 devices with purpose & justification' },
+  '/vlsm': { title: 'VLSM Studio', description: 'Client-side subnet allocation calculator' },
+  '/architecture': { title: 'Architecture', description: 'Complete design documentation' },
 };
 
 export const Header: React.FC = () => {
   const location = useLocation();
-  const [connected, setConnected] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (location.pathname === '/simulation') return;
-    api.get('/health').then(() => setConnected(true)).catch(() => setConnected(false));
-  }, [location.pathname]);
   const pageInfo = pageTitles[location.pathname] ?? { title: 'CorporateNet', description: '' };
 
   return (
@@ -34,12 +26,12 @@ export const Header: React.FC = () => {
       </div>
       <div className="flex items-center gap-4">
         <span className="text-sm text-slate-500 hidden sm:block">
-          Educational workspace
+          Frontend-only · Educational workspace
         </span>
-        {location.pathname === '/simulation' ? <span className="connection-status"><span className="status-dot connected" />Offline-ready demo</span> : <span role="status" className="connection-status">
-          <span className={`status-dot ${connected ? 'connected' : ''}`} aria-hidden="true" />
-          {connected === null ? 'Connecting' : connected ? 'API online' : 'API offline'}
-        </span>}
+        <span className="connection-status">
+          <span className="status-dot connected" aria-hidden="true" />
+          Local data mode
+        </span>
       </div>
     </header>
   );

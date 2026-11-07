@@ -1,104 +1,88 @@
 # CorporateNet architecture
 
-## Three separate artifacts
+## Two deliberate artifacts
 
-| Artifact | Source of truth | Purpose | Required runtime |
+| Artifact | Source of truth | Purpose | Runtime |
 |---|---|---|---|
-| Completed network | `network/packet-tracer/Scalable_Corporate_Network_CN.pkt` | Configured 43-device protocol simulation | Cisco Packet Tracer 9.0.1 or compatible newer version |
-| Browser presentation | `apps/web/src/data/packetTracer.ts` | Manually transcribed topology and narrated path illustration | Vite/React; no API or MongoDB |
-| Saved-design dashboard | MongoDB NetworkDesign/TestRun/Scenario records | Calculations, editable designs, recorded observations and reports | Frontend + Express API + MongoDB |
+| Native network | `network/packet-tracer/Scalable_Corporate_Network_CN.pkt` | IOS configuration, protocol behavior, live packets, and evidence | Cisco Packet Tracer 9.0.1+ |
+| Browser companion | `apps/web/src/data/labData.ts` | Explain the same 43-device topology and illustrate packet paths | React/Vite in a browser |
 
-The API seed in `apps/api/src/scripts/seed-data.ts` is the older R1–R2–R3 design with eight modeled devices and seven links. It is not automatically replaced by the completed lab. Saving a design in VLSM Studio does not alter the .pkt or the presentation model.
+The repository is frontend-only. There is no API, database, server persistence, or second saved topology.
 
 ```mermaid
 flowchart LR
-  PKT[Completed Packet Tracer lab] -. Manual transcription .-> MODEL[Local typed presentation model]
-  MODEL --> PRESENT[Browser /simulation]
-  DASH[Other browser pages] <-- REST /api/v1 --> API[Express API]
-  API <--> DB[(MongoDB saved designs and records)]
+  PKT[Packet Tracer .pkt] -. verified manual transcription .-> DATA[labData.ts]
+  DATA --> OVERVIEW[Overview]
+  DATA --> TOPOLOGY[Topology Explorer]
+  DATA --> DEVICES[Device Guide]
+  DATA --> PRESENT[Guided Simulation]
+  DATA --> VLSM[VLSM Studio]
 ```
 
-There is no live control or synchronization arrow between the browser/API and Packet Tracer. No Cisco-specific MCP connection was available in the configuration session; native UI configuration was used. No CLI evidence import/collector feature is implemented.
+The browser does not control Packet Tracer. The separately installed local Packet Tracer MCP is an audit/configuration tool for the native application, not a website backend.
 
-## Frontend
+## Network layers
 
-Stack: React 18, TypeScript, Vite 5, React Router, React Flow, Recharts and Tailwind/CSS. State uses React hooks; network requests use the typed Fetch client in `apps/web/src/api/client.ts`.
+- **Access:** seven 2960 switches, autonomous/lightweight APs, WLCs, and WRT devices acting as Layer-2 bridges.
+- **Distribution:** west serves Engineering, Administration, and HR; east serves Finance and IT; the server multilayer switch serves VLAN 60.
+- **Core:** the core multilayer switch joins west, east, servers, and Router0 with routed /30 links and OSPF area 0.
+- **Edge:** Router0 owns the default route and PAT; the ISP router provides simulated ISP-client and external-server networks.
 
-| Route | Component / behavior | Data |
-|---|---|---|
-| `/simulation` | `Presentation.tsx`: guided 43-device walkthrough | Local model |
-| `/` | Overview | Latest selected/saved design data |
-| `/topology` | Source/destination paths, link removal, animation | Saved links |
-| `/vlsm` | Largest-first calculator; save a connected design | API |
-| `/routing` | Design-derived route/neighbor expectations and illustrative CLI | Saved interfaces/OSPF metadata |
-| `/diagnostics` | Directional ping-observation matrix and manual recording | TestRun records |
-| `/scenarios` | Documented failure scenarios | Scenario records |
-| `/reports` | Report generation and Markdown export | Saved design and records |
+The explanatory floor grouping is Floor 1 (Admin/Engineering/HR) and Floor 2 (Finance/IT). It is a logical presentation of the retained topology, not a physical site survey.
 
-### Presentation implementation
+## Addressing and routing
 
-- `data/packetTracer.ts` contains device names, positions, addresses, port links, five department cards and ten narrated stages.
-- `Presentation.tsx` owns timer/progress, pause/resume, replay/reset, expanded presentation mode and device inspection.
-- React Flow renders 43 devices and 43 physical/wireless links. Existing breadth-first `findPath` from `utils/simulation.ts` calculates example routes with one optional failed link.
-- Stages cover VLSM; DHCP request/response; OSPF overview; DNS query/reply; HTTP; ISP ICMP; server-link failure; recovery.
-- Packet dots advance between hops. Timings, route choice and failure recomputation are illustrative. The graph does not implement IOS forwarding, OSPF cost/timers/ECMP, DHCP broadcast fan-out, TCP, NAT or CAPWAP.
-- The “primary”/“backup” labels select an example failure path; they do not define an active/standby routing policy in the lab.
-- Presentation mode hides the surrounding dashboard; Escape exits. Reduced-motion styling removes packet movement. The header skips its API health request on `/simulation`.
+Corporate addressing uses `10.10.0.0/23`. VLSM allocates the largest department first, followed by smaller departmental networks, the server /28, and five corporate routed /30 links. The WAN is `198.51.100.0/30`; the external server network is `203.0.113.0/24`.
 
-### Saved-design topology
+OSPF process 1, area 0 router IDs:
 
-`Topology.tsx` and `utils/simulation.ts` render the current saved design, calculate graph reachability and allow link-removal demonstrations. A chain design becomes partitioned when a bridge link is removed; the completed lab's parallel server links are a different case. Neither browser graph sends real packets.
+| Device | Router ID |
+|---|---|
+| west | 1.1.1.1 |
+| core | 2.2.2.2 |
+| east | 3.3.3.3 |
+| servers | 4.4.4.4 |
+| edge | 5.5.5.5 |
 
-## Backend and persistence
+The ISP is outside corporate OSPF and uses static routing. Router0 translates eligible corporate traffic to `198.51.100.1` with PAT. TEST-NET addresses are documentation ranges, not public Internet service.
 
-Stack: Node.js 20+, Express, TypeScript, Mongoose, Zod, Pino, Helmet, CORS and rate limiting.
+## Wireless design
 
-- `src/routes/`: designs/VLSM, tests and scenarios routes.
-- `src/services/`: design operations, VLSM arithmetic, directional observations, scenarios and report generation.
-- `src/models/`: NetworkDesign with embedded department/device/interface/link arrays; TestRun and Scenario with design references.
-- `src/middleware/`: validation and centralized error handling.
-- `src/scripts/demo.ts`: disposable seeded MongoDB runtime; `seed.ts` seeds the configured persistent database.
+- `Corp-Admin`: WLC0 + LWAP0, bridged into the Administration subnet.
+- `ISP-Managed`: WLC1 + LWAP1, bridged into the ISP-client subnet.
+- Autonomous AP0/AP1 bridge IT and Finance wireless clients.
+- WRT0/WRT1 use LAN Ethernet ports with their internal DHCP servers disabled; west/ISP DHCP provides client addressing.
 
-Test outcomes are recorded observations with evidence type and notes. The API does not execute ping or router commands. Metadata and illustrative CLI must not be treated as live verified state.
+An AP without a management IP is still a valid bridge but cannot originate ICMP. Verify its data plane with an associated client.
 
-### Main endpoints
+## Frontend implementation
 
-All paths below are relative to `/api/v1`.
+Stack: React 18, TypeScript, Vite 5, React Router, React Flow, and Tailwind/CSS.
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/health` | API health response |
-| GET / POST | `/designs` | List / create designs |
-| GET / PATCH / DELETE | `/designs/:id` | Read / update / delete design |
-| POST | `/vlsm/calculate` | Calculate subnet allocation |
-| GET | `/designs/:id/topology` | Transform saved topology |
-| GET | `/designs/:id/routes` | Saved/derived routing information |
-| GET | `/designs/:id/report` | Report-ready design and observations |
-| GET / POST | `/tests` | List / record observations; designId in filter/body |
-| GET | `/tests/matrix?designId=...` | Latest directional ping outcomes |
-| GET / POST | `/scenarios` | List / create failure records; designId in filter/body |
+| Route | Behavior |
+|---|---|
+| `/` | Counts and addressing summary from local lab data |
+| `/simulation` | Ten narrated stages with animated packet hops |
+| `/topology` | Any-source/destination graph path and one-link failure illustration |
+| `/device-guide` | Searchable purpose, justification, interfaces, and neighbors |
+| `/vlsm` | Largest-first VLSM calculator running entirely in the browser |
+| `/architecture` | This design summarized in the UI |
 
-Individual `/tests/:id` and `/scenarios/:id` routes support GET/PATCH/DELETE. `/designs/vlsm/calculate` is also implemented as an alias of `/vlsm/calculate`. Successful JSON responses use `{ success: true, data, meta }`; errors use `{ success: false, error: { code, message, details? } }`. `/designs/:id/report?format=markdown` returns Markdown text rather than JSON.
+`labData.ts` contains devices, links, interfaces, positions, explanations, architecture text, VLSM logic, and demonstration stages. `utils/simulation.ts` contains the breadth-first path finder and fallback layout helper.
 
-### VLSM
+Packet movement is illustrative: it does not model IOS forwarding tables, ARP timing, OSPF convergence/cost/ECMP, DHCP broadcast fan-out, TCP state, NAT internals, or CAPWAP.
 
-The API engine is `apps/api/src/services/vlsm.ts`. It parses IPv4/CIDR, sorts requested-plus-reserved capacity largest-first, includes network/broadcast addresses, aligns each block, checks bounds/overlap and decomposes remaining space. Invalid/insufficient allocations return errors. The frontend has calculator helpers and regression tests; calculator results do not push configuration to lab devices.
+## Scalability and limits
 
-## Running and building
+Adding a department requires an available subnet, gateway/DHCP configuration, access uplink, and route advertisement. Address space, port count, bandwidth, AP capacity, and failure domains must all be reviewed.
+
+This educational design still has single points of failure at the core, edge, and each distribution block. Two server links demonstrate alternate reachability but do not provide full campus high availability. Production evolution would add redundant cores/edges, first-hop redundancy, port channels, routed access or resilient trunks, security policy, monitoring, and capacity measurements.
+
+## Validation
 
 ```powershell
-npm run dev:web                          # Presentation-only frontend
-npm run demo                             # API + frontend; temporary old seed
-npm run dev                              # API + frontend; configured database
-npm run build                            # Both workspaces
-npm run start --workspace=apps/api        # Built API only
-npm run preview --workspace=apps/web      # Built frontend preview
+npm run build
+npm test
 ```
 
-There is no root `npm run start` script. Vite proxies `/api` to localhost:3000 by default; `API_PROXY_TARGET` can override its target. `VITE_API_BASE_URL` defaults to `/api/v1`. Production serving/proxy/TLS configuration must be provided by the hosting environment; this repository has not been deployed as part of this work.
-
-The API reads `MONGODB_URI`, `PORT`, `NODE_ENV`, `WEB_ORIGIN` and rate-limit settings. Keep database credentials in server environment files; never use a `VITE_*` variable for secrets. See [run-and-simulate](run-and-simulate.md) for non-overwriting setup commands.
-
-## Validation and limits
-
-Frontend unit/component tests run with `npm run test --workspace=apps/web`. API unit/integration suites use a temporary MongoDB process. Rehearse browser interactions using [the presentation script](present-to-sir.md). Authentication, multi-tenancy, live telemetry, Packet Tracer integration, measured performance guarantees and real hardware support are not implemented or validated features.
+Automated tests validate the browser data and algorithms. Native verification is recorded separately in `network/packet-tracer/connectivity-matrix.csv` and the lab guide. Do not infer native pair success solely from a browser graph path.

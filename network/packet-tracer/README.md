@@ -1,8 +1,32 @@
 # Scalable Corporate Network — Packet Tracer topology
 
-Open [Scalable_Corporate_Network_CN.pkt](Scalable_Corporate_Network_CN.pkt) for the completed 43-device project. The older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
+## Follow-up PDU check — 7 November 2026
 
-For the one-click browser walkthrough, run `npm run dev:web` from the repository root and open **http://localhost:5173/simulation → Present → Simulate**. It uses a manually transcribed 43-device/43-link model, requires no API/MongoDB and does not control this .pkt. See [the presentation outline](../../docs/presentation-outline.md), [speaking script](../../docs/present-to-sir.md) and [full address plan](../addressing/vlsm-plan.md).
+The user reported failed Server1 → PC3 and Laptop7 → PC0 rows. Live inspection found Server1 at 10.10.1.66/28 with gateway 10.10.1.65 and PC3 currently on DHCP at 10.10.0.196/27 with gateway 10.10.0.193. Fresh Simple PDUs for both exact device pairs displayed Successful (new rows 2 and 3); repeated sends of those rows also displayed Successful. No addressing or routing change was needed for these two checks. The original failed rows remain historical evidence, not a current retest. The main project was saved with the fresh tests. This does not establish why the original individual packets failed; initial ARP resolution or an earlier address/state remains possible.
+
+## Latest verification — 4 November 2026
+
+Reopening the main `.pkt` confirmed both WRT LAN-bridge conversions persisted, with their DHCP servers disabled. Switch2 Fa0/2 connects to Wireless Router0 Ethernet1; Switch3 Fa0/4 connects to Wireless Router1 Ethernet1. Their Internet ports are no longer uplinks. HR clients now use 10.10.0.224/27 directly; the ISP wireless client uses 192.168.13.0/24.
+
+Laptop1 → Laptop4 at 10.10.0.227 returned **4/4 replies on repeat ping**. The current Laptop8 `ipconfig` showed **192.168.13.11/24**; its previously observed .15 lease was stale after reopening. Laptop8 → PC3 (10.10.0.194) and Laptop8 → Laptop4 (10.10.0.227) each returned **4/4 replies**. Laptop5 was last observed at 10.10.0.228/27. DHCP leases can change; read `ipconfig` before choosing a destination. These are specific checks, not an all-client/all-pairs result.
+
+Router0 accepted extended ACL101 and its overload rule, and `write memory` returned `[OK]`. The rule exempts corporate traffic to routed ISP clients (192.168.13.0/24) and selects corporate traffic to the simulated external server network (203.0.113.0/24) for NAT. The WAN uses 198.51.100.0/30: edge .1, ISP .2, edge default via .2 and ISP corporate return via .1. The ISP routing table showed the corporate return route via 198.51.100.1 and connected WAN/external-server networks; ISP → Admin gateway 10.10.0.129 returned **5/5 replies**. **Verified again on 7 November 2026 after reopening:** Router0 serial 198.51.100.1 was up/up and its core OSPF neighbor reached FULL. Laptop1 pinged 203.0.113.2 with 4/4 replies on repeat. The NAT table displayed eight ICMP entries translating inside-local 10.10.0.136 to inside-global 198.51.100.1, destination 203.0.113.2. The main project was saved after this check. These TEST-NET documentation addresses represent the public side in the lab; they are not real Internet allocations. Additional client and management paths remain outside the verified scope. Read dated observations below as history rather than a blanket current success claim.
+
+## Edge PAT verification — 2 November 2026
+
+The architecture upgrade and exhaustive connectivity checks are still incomplete. Earlier results below are historical observations, not proof that every current client works.
+
+Edge PAT is now configured and saved: FastEthernet0/0 is NAT inside, Serial0/3/0 is NAT outside, and access-list 1 matches 10.10.0.0/23. Overload uses the existing serial address 192.168.11.1. This is a private lab WAN address, not a public Internet allocation.
+
+Fresh checks: both connected edge interfaces were up/up. The current Finance client address observed during the audit was 10.10.0.196. Corporate-to-external traffic uses Router0 PAT address 198.51.100.1 toward 203.0.113.2. Dynamic translations expire, so generate traffic immediately before reading the table.
+
+To reproduce: PC3 → Desktop → Command Prompt → `ping 203.0.113.2`; then Router0 → CLI → `enable` → `show ip nat translations`. Dynamic entries expire, so generate traffic before inspecting the table.
+
+The pre-change backup is `Scalable_Corporate_Network_CN.before-nat.pkt`. It predates the wireless bridge correction. Separate guest WLAN isolation, public-address NAT and all-client checks were not established by this test.
+
+Open [Scalable_Corporate_Network_CN.pkt](Scalable_Corporate_Network_CN.pkt) for the 43-device project. The older R1/R2/R3 text configurations elsewhere in this repository describe a different topology and must not be pasted into these devices.
+
+For the one-click browser walkthrough, run `npm run dev` from the repository root and open **http://localhost:5173/simulation → Present → Simulate**. It uses a manually transcribed 43-device/43-link model and does not control this `.pkt`. See [the presentation outline](../../docs/presentation-outline.md), [speaking script](../../docs/present-to-sir.md) and [full address plan](../addressing/vlsm-plan.md).
 
 ## Addressing
 
@@ -11,7 +35,7 @@ For the one-click browser walkthrough, run `npm run dev:web` from the repository
 | Engineering | 10.10.0.0/25 | 10.10.0.1 | Multilayer Switch1 Fa0/3 → Switch1 |
 | Administration | 10.10.0.128/26 | 10.10.0.129 | Multilayer Switch1 Fa0/1 → Switch0 |
 | Finance | 10.10.0.192/27 | 10.10.0.193 | Multilayer Switch3 VLAN30 → Switch5 and Switch7 |
-| HR uplink | 10.10.0.224/27 | 10.10.0.225 | Multilayer Switch1 Fa0/4 → Switch2 → Wireless Router0 Internet |
+| HR | 10.10.0.224/27 | 10.10.0.225 | Multilayer Switch1 Fa0/4 → Switch2 → Wireless Router0 Ethernet1 |
 | IT Support | 10.10.1.0/28 | 10.10.1.1 | Multilayer Switch3 Fa0/3 → Switch6 |
 | Servers | 10.10.1.64/28 | 10.10.1.65 | Multilayer Switch0 VLAN60 |
 | Simulated ISP clients | 192.168.13.0/24 | 192.168.13.1 | ISP Fa0/1 → Switch3 |
@@ -19,7 +43,7 @@ For the one-click browser walkthrough, run `npm run dev:web` from the repository
 
 Corporate routed links use /30 masks:
 
-The five corporate routed /30s, department blocks and server /28 allocate **308 of 512 corporate addresses (60.2%)**; **204 remain unallocated (39.8%)**. ISP and private NAT segments are outside this total. This is allocated address space, not an active-client count.
+The five corporate routed /30s, department blocks and server /28 allocate **308 of 512 corporate addresses (60.2%)**; **204 remain unallocated (39.8%)**. ISP segments are outside this total; HR wireless clients are included in HR. This is allocated address space, not an active-client count.
 
 | Endpoints | Addresses |
 |---|---|
@@ -28,13 +52,13 @@ The five corporate routed /30s, department blocks and server /28 allocate **308 
 | Core Fa0/2 ↔ servers Fa0/4 | 10.10.1.25 ↔ 10.10.1.26 |
 | Core Fa0/3 ↔ servers Fa0/5 | 10.10.1.29 ↔ 10.10.1.30 |
 | Core Fa0/4 ↔ Router0 Fa0/0 | 10.10.1.113 ↔ 10.10.1.114 |
-| Router0 S0/3/0 ↔ ISP S0/3/0 | 192.168.11.1 ↔ 192.168.11.2 |
+| Router0 S0/3/0 ↔ ISP S0/3/0 | 198.51.100.1 ↔ 198.51.100.2 |
 
-IOS hostnames: `core` (Multilayer Switch2), `dist-west` (Multilayer Switch1), `dist-east` (Multilayer Switch3), `servers` (Multilayer Switch0), `edge` (Router0), and `isp`. Corporate routing uses OSPF process 1, area 0. The edge advertises its static default route to the ISP. The ISP has a return route for 10.10.0.0/23 via 192.168.11.1.
+IOS hostnames: `core` (Multilayer Switch2), `dist-west` (Multilayer Switch1), `dist-east` (Multilayer Switch3), `servers` (Multilayer Switch0), `edge` (Router0), and `isp`. Corporate routing uses OSPF process 1, area 0. The edge advertises its static default route to the ISP. The updated WAN design uses ISP return route 10.10.0.0/23 via 198.51.100.1; see the dated verification evidence above before presenting.
 
 Server1 is DNS at 10.10.1.66, server2 is the intranet at 10.10.1.67, server3 is 10.10.1.68, and server4 is 203.0.113.2. DNS records are `intranet.corporate.test` and `www.isp.test`. These are simulated services inside Packet Tracer, not real Internet access.
 
-The existing WRT300N uses NAT with its own 192.168.0.0/24 wireless LAN. Its HR-facing uplink obtains a 10.10.0.224/27 address. Inbound connections to wireless hosts behind NAT require additional design; outbound access is the intended test.
+Both WRT300N devices now act as LAN-connected wireless bridges, with local DHCP disabled. This removes their former private NAT client boundaries. It does not create guest isolation. Edge PAT remains on Router0; test both traffic directions and inspect NAT selection/return routing when a routed ISP-client test fails. A Layer 2 switch needs management addressing and a return gateway to answer ping itself even when it forwards client frames correctly.
 
 ## Run and demonstrate
 
@@ -59,6 +83,8 @@ The existing WRT300N uses NAT with its own 192.168.0.0/24 wireless LAN. Its HR-f
 - PC3 resolved www.isp.test to 203.0.113.2 and received ICMP replies.
 
 ## Continuation checks — 31 October 2026
+
+Historical configuration: the WRT devices still used private NAT client LANs during these tests. Their 192.168.0.x leases and Internet-port uplinks were superseded by the LAN-bridge correction above.
 
 - Corrected Laptop10 from the old static subnet to DHCP: 192.168.13.11/24, gateway 192.168.13.1, DNS 10.10.1.66.
 - Corrected WLC1 management to 192.168.13.2/24, gateway 192.168.13.1, DNS 10.10.1.66. LWAP1 uses DHCP and primary controller 192.168.13.2.
@@ -98,8 +124,8 @@ The browser labels these example links “primary” and “backup”; those lab
 
 ## Test scope
 
-Representative wired, wireless, NAT, interdepartmental and ISP-to-corporate paths were checked, together with DHCP, DNS/HTTP and one redundant-link failure. Exhaustive all-client/all-pairs, load and security testing were not performed. Initial ARP/DHCP/OSPF convergence can cause the first packet to fail; allow convergence and retry.
+Representative wired, wireless, NAT, interdepartmental and ISP paths were checked, together with DHCP, DNS/HTTP, switch management reachability, and one redundant-link failure. The directed 43-device matrix contains 1,806 possible non-self pairs and remains the evidence ledger; do not claim untested rows as passes. Initial ARP/DHCP/OSPF convergence can cause a first packet to fail, so warm the path, retry, and record both outcomes.
 
-No Cisco-specific MCP connection was available in this session; the project was configured using Packet Tracer's native UI. All ISP and web services in this file are simulated.
+The Packet Tracer MCP server, Codex skill, and MCP-Control-Center extension are installed. Codex and Packet Tracer must be restarted and **Extensions → MCP BUILDER** opened before the MCP can continue native automation. All ISP and web services in this file are simulated.
 
-These are recorded session observations. A complete raw CLI/screenshot evidence bundle is not included, and this documentation update did not reopen or retest the lab. Collect any evidence required by your faculty using the commands in the run guide.
+These are recorded session observations. A complete raw CLI/screenshot evidence bundle is not included. The latest section records the current session's specific checks; earlier sections retain their original dates and scope. Collect any evidence required by your faculty using the commands in the run guide.

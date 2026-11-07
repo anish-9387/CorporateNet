@@ -1,4 +1,4 @@
-import type { Link, NetworkDesign } from '@/types';
+import type { Device, Link } from '@/types';
 
 export function findPath(links: Link[], source: string, destination: string, failedLink = ''): string[] | null {
   if (!source || !destination) return null;
@@ -18,17 +18,19 @@ export function findPath(links: Link[], source: string, destination: string, fai
   return null;
 }
 
-export function layoutDevices(design: NetworkDesign) {
-  const routers = design.devices.filter((device) => device.type === 'router');
+export function layoutDevices(devices: Array<{ deviceId: string; type?: Device['type'] }>, links: Link[]) {
+  const backboneIds = new Set(['core', 'edge', 'west', 'east', 'servers', 'isp']);
+  const routers = devices.filter((device) => device.type === 'router' || backboneIds.has(device.deviceId));
+  
   const rows = new Map<number, number>();
-  return design.devices.map((device, index) => {
+  return devices.map((device, index) => {
     const routerIndex = routers.findIndex((router) => router.deviceId === device.deviceId);
-    if (routerIndex >= 0) return { device, position: { x: routerIndex * 320, y: 50 } };
-    const link = design.links.find((item) => item.sourceDeviceId === device.deviceId || item.targetDeviceId === device.deviceId);
+    if (routerIndex >= 0) return { deviceId: device.deviceId, position: { x: routerIndex * 320, y: 50 } };
+    const link = links.find((item) => item.sourceDeviceId === device.deviceId || item.targetDeviceId === device.deviceId);
     const parent = routers.findIndex((router) => router.deviceId === link?.sourceDeviceId || router.deviceId === link?.targetDeviceId);
     const column = parent >= 0 ? parent : index;
     const row = rows.get(column) ?? 0;
     rows.set(column, row + 1);
-    return { device, position: { x: column * 320, y: 240 + row * 145 } };
+    return { deviceId: device.deviceId, position: { x: column * 320, y: 240 + row * 145 } };
   });
 }

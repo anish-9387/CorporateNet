@@ -2,25 +2,13 @@
   "name": "corporatenet",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
-    "demo": "concurrently --kill-others \"npm run demo --workspace=apps/api\" \"npm run dev:web\"",
-    "dev:api": "npm run dev --workspace=apps/api",
-    "dev:web": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspaces",
-    "build:api": "npm run build --workspace=apps/api",
-    "build:web": "npm run build --workspace=apps/web",
-    "test": "npm run test --workspaces",
-    "lint": "npm run lint --workspaces",
-    "db:seed": "npm run db:seed --workspace=apps/api"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2",
-    "jsdom": "^24.1.3",
-    "mongodb-memory-server": "^10.4.3"
+    "dev": "cd apps/web && npm run dev",
+    "build": "cd apps/web && npm run build",
+    "preview": "cd apps/web && npm run preview",
+    "test": "cd apps/web && npm run test",
+    "lint": "cd apps/web && npm run lint"
   },
   "engines": {
     "node": ">=20.0.0"

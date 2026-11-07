@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { designsApi } from '@/api/designs';
-import { VLSMInput, VLSMResult, VLSMCalculationResponse, NetworkDesign } from '@/types';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, Badge, Input, Button, Table } from '@/components/common';
+import { calculateVLSM } from '@/data/labData';
+import type { VLSMInput, VLSMResult, VLSMCalculationResponse } from '@/types';
 
 const defaultDepartments: VLSMInput[] = [
   { name: 'Engineering', hostCount: 100 },
@@ -17,59 +17,23 @@ export const VLSMStudio: React.FC = () => {
   const [result, setResult] = useState<VLSMCalculationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedDesign, setSavedDesign] = useState<NetworkDesign | null>(null);
 
   useEffect(() => {
-    let active = true;
     setLoading(true);
     setError(null);
-    setResult(null);
-    setSavedDesign(null);
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       try {
-        const response = await designsApi.calculateVLSM(parentCidr, departments);
-        if (!active) return;
+        const response = calculateVLSM(parentCidr, departments);
         setResult(response);
         if (!response.isValid) setError(response.errors.join('; '));
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Calculation failed');
+        setError(err instanceof Error ? err.message : 'Calculation failed');
       } finally {
-        if (active) setLoading(false);
+        setLoading(false);
       }
-    }, 300);
-    return () => { active = false; clearTimeout(timer); };
+    }, 150);
+    return () => clearTimeout(timer);
   }, [parentCidr, departments]);
-
-  const handleSaveDesign = async () => {
-    if (!result?.isValid) return;
-    try {
-      setLoading(true);
-      const design = await designsApi.create({
-        name: 'CorporateNet Design',
-        description: 'VLSM design with one core router and one access switch per department',
-        parentCidr,
-        departments: departments.map((d) => ({ name: d.name, hostRequirement: d.hostCount, reservedCapacity: d.reservedCapacity })),
-        devices: [
-          { hostname: 'R1', type: 'router' },
-          ...departments.map((_d, index) => ({ hostname: `SW-${index + 1}`, type: 'switch' })),
-        ],
-        interfaces: departments.map((d, index) => {
-          const subnet = result.subnets.find((s) => s.name === d.name)!;
-          return { deviceId: 'R1', interfaceName: `G0/${index}`, ipAddress: subnet.gateway, subnetMask: subnet.subnetMask, networkCidr: `${subnet.networkAddress}/${subnet.prefix}`, passiveOspf: true };
-        }),
-        links: departments.map((d, index) => {
-          const subnet = result.subnets.find((s) => s.name === d.name)!;
-          return { sourceDeviceId: 'R1', sourceInterface: `G0/${index}`, targetDeviceId: `SW-${index + 1}`, targetInterface: 'G0/1', networkCidr: `${subnet.networkAddress}/${subnet.prefix}`, medium: 'ethernet' };
-        }),
-        ospf: { processId: 1, areas: [0], routerIds: { R1: '1.1.1.1' } },
-      });
-      setSavedDesign(design);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save design');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const addDepartment = () => {
     setDepartments([...departments, { name: `Dept ${departments.length + 1}`, hostCount: 10 }]);
@@ -86,8 +50,8 @@ export const VLSMStudio: React.FC = () => {
     setDepartments(departments.filter((_, i) => i !== index));
   };
 
-  const totalHosts = departments.reduce((sum, d) => sum + d.hostCount, 0);
-  const totalUsable = result?.subnets.reduce((sum, s) => sum + s.usableAddresses, 0) ?? 0;
+  const totalHosts = useMemo(() => departments.reduce((sum, d) => sum + d.hostCount, 0), [departments]);
+  const totalUsable = useMemo(() => result?.subnets.reduce((sum, s) => sum + s.usableAddresses, 0) ?? 0, [result]);
   const utilization = totalUsable > 0 ? Math.round((totalHosts / totalUsable) * 100) : 0;
 
   return (
@@ -95,11 +59,12 @@ export const VLSMStudio: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">VLSM Calculator</h2>
+            <h2 className="text-lg font-semibold text-slate-900">VLSM Calculator (Client-Side)</h2>
             <div className="flex items-center gap-2">
               <Badge variant={result?.isValid ? 'success' : 'error'}>
                 {result?.isValid ? 'Valid Allocation' : 'Invalid'}
               </Badge>
+              <Badge variant="info">No API Required</Badge>
             </div>
           </CardHeader>
           <div className="card-body space-y-6">
@@ -126,12 +91,17 @@ export const VLSMStudio: React.FC = () => {
                   Add Department
                 </Button>
               </div>
-              <div className="hidden md:grid grid-cols-12 gap-3 text-xs text-slate-500"><span className="col-span-4">Department</span><span className="col-span-3">Hosts</span><span className="col-span-3">Reserved capacity</span></div>
+              <div className="hidden md:grid grid-cols-12 gap-3 text-xs text-slate-500">
+                <span className="col-span-4">Department</span>
+                <span className="col-span-3">Hosts</span>
+                <span className="col-span-3">Reserved Capacity</span>
+              </div>
               {departments.map((dept, index) => (
                 <div key={index} className="grid grid-cols-12 gap-3">
                   <div className="col-span-12 md:col-span-4">
                     <Input
-                      aria-label={`Department ${index + 1} name`} value={dept.name}
+                      aria-label={`Department ${index + 1} name`} 
+                      value={dept.name}
                       onChange={(e) => updateDepartment(index, 'name', e.target.value)}
                     />
                   </div>
@@ -139,7 +109,8 @@ export const VLSMStudio: React.FC = () => {
                     <Input
                       type="number"
                       min="1"
-                      aria-label={`Hosts for ${dept.name}`} value={dept.hostCount}
+                      aria-label={`Hosts for ${dept.name}`} 
+                      value={dept.hostCount}
                       onChange={(e) => updateDepartment(index, 'hostCount', parseInt(e.target.value) || 0)}
                     />
                   </div>
@@ -147,7 +118,8 @@ export const VLSMStudio: React.FC = () => {
                     <Input
                       type="number"
                       min="0"
-                      aria-label={`Reserved capacity for ${dept.name}`} value={dept.reservedCapacity ?? 0}
+                      aria-label={`Reserved capacity for ${dept.name}`} 
+                      value={dept.reservedCapacity ?? 0}
                       onChange={(e) => updateDepartment(index, 'reservedCapacity', parseInt(e.target.value) || 0)}
                     />
                   </div>
@@ -173,8 +145,8 @@ export const VLSMStudio: React.FC = () => {
             )}
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-              <Button variant="primary" onClick={handleSaveDesign} disabled={loading || !result?.isValid}>
-                {loading ? 'Saving...' : 'Save Design'}
+              <Button variant="primary" disabled={loading || !result?.isValid}>
+                {loading ? 'Calculating...' : 'Recalculate'}
               </Button>
             </div>
           </div>
@@ -258,22 +230,31 @@ export const VLSMStudio: React.FC = () => {
                 </Badge>
               ))}
             </div>
+            <p className="text-xs text-slate-500 mt-2">
+              These blocks are available for future growth. Total unallocated: 
+              {result.remainingAddressSpace.reduce((sum, cidr) => {
+                const prefix = parseInt(cidr.split('/')[1]);
+                return sum + (1 << (32 - prefix));
+              }, 0)} addresses ({Math.round(result.remainingAddressSpace.reduce((sum, cidr) => {
+                const prefix = parseInt(cidr.split('/')[1]);
+                return sum + (1 << (32 - prefix));
+              }, 0) / 512 * 100)}% of parent)
+            </p>
           </div>
         </Card>
       )}
 
-      {savedDesign && (
-        <Card className="border-green-300 bg-green-50">
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-green-900">Design Saved Successfully</h2>
-          </CardHeader>
-          <div className="card-body">
-            <p className="text-green-700">Design ID: <code className="font-mono">{savedDesign._id}</code></p>
-            <p className="text-sm text-green-600 mt-1">You can now view this design in Topology, Routing, and other sections.</p>
-          </div>
-        </Card>
-      )}
+      <Card className="border-blue-300 bg-blue-50">
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-blue-900">About This Calculator</h2>
+        </CardHeader>
+        <div className="card-body space-y-2 text-sm text-blue-800">
+          <p><strong>Largest-first VLSM algorithm</strong> implemented entirely in the browser — no API calls needed.</p>
+          <p>Sorts departments by (hosts + reserved) descending, allocates aligned blocks, checks parent boundaries and overlap.</p>
+          <p>Matches the addressing plan used in <code className="font-mono bg-blue-100 px-1.5 py-0.5 rounded">Scalable_Corporate_Network_CN.pkt</code>.</p>
+          <p className="text-xs">Formula: prefix = 32 - ceil(log2(requiredHosts + reserved + 2)) for network/broadcast.</p>
+        </div>
+      </Card>
     </div>
   );
 };
-

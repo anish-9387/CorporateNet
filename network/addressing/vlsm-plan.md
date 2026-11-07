@@ -1,6 +1,6 @@
-# Addressing plan — completed 43-device lab
+# Addressing plan — 43-device lab
 
-Updated: 1 November 2026. Corporate parent: **10.10.0.0/23** (10.10.0.0–10.10.1.255, 512 addresses). This describes [the completed lab](../packet-tracer/Scalable_Corporate_Network_CN.pkt) and `/simulation`. Older R1/R2/R3 text configurations describe a separate topology.
+Updated: 4 November 2026. Corporate parent: **10.10.0.0/23** (10.10.0.0–10.10.1.255, 512 addresses). This describes [the lab](../packet-tracer/Scalable_Corporate_Network_CN.pkt) and `/simulation`; consult [verification notes](../packet-tracer/README.md) for tested paths and final save status. Older R1/R2/R3 text configurations describe a separate topology.
 
 ## Department and server allocation
 
@@ -9,11 +9,11 @@ Updated: 1 November 2026. Corporate parent: **10.10.0.0/23** (10.10.0.0–10.10.
 | Engineering | 100 | 10.10.0.0/25 | 255.255.255.128 | 10.10.0.1 | 10.10.0.1–126 | 10.10.0.127 | 126 |
 | Administration | 50 | 10.10.0.128/26 | 255.255.255.192 | 10.10.0.129 | 10.10.0.129–190 | 10.10.0.191 | 62 |
 | Finance | 25 | 10.10.0.192/27 | 255.255.255.224 | 10.10.0.193 | 10.10.0.193–222 | 10.10.0.223 | 30 |
-| HR uplink | 20 | 10.10.0.224/27 | 255.255.255.224 | 10.10.0.225 | 10.10.0.225–254 | 10.10.0.255 | 30 |
+| HR | 20 | 10.10.0.224/27 | 255.255.255.224 | 10.10.0.225 | 10.10.0.225–254 | 10.10.0.255 | 30 |
 | IT Support | 12 | 10.10.1.0/28 | 255.255.255.240 | 10.10.1.1 | 10.10.1.1–14 | 10.10.1.15 | 14 |
 | Servers | — | 10.10.1.64/28 | 255.255.255.240 | 10.10.1.65 | 10.10.1.65–78 | 10.10.1.79 | 14 |
 
-Range endings abbreviate the last octet. Nominal usable addresses include gateways/infrastructure; this is not the available DHCP pool or active-client count. HR clients use a private NAT LAN behind the /27 corporate uplink.
+Range endings abbreviate the last octet. Nominal usable addresses include gateways/infrastructure; this is not the available DHCP pool or active-client count. HR wireless clients now join this /27 directly through Wireless Router0's LAN bridge.
 
 ## Routed corporate links
 
@@ -27,17 +27,17 @@ All use mask **255.255.255.252 (/30)**, two usable addresses.
 | Core–servers B | 10.10.1.28/30 | core Fa0/3: 10.10.1.29 | servers Fa0/5: 10.10.1.30 | 10.10.1.31 |
 | Core–edge | 10.10.1.112/30 | core Fa0/4: 10.10.1.113 | edge Fa0/0: 10.10.1.114 | 10.10.1.115 |
 
-## ISP and private NAT networks
+## ISP and wireless client networks
 
 | Segment | Subnet | Endpoints / gateway |
 |---|---|---|
-| Edge–ISP serial | 192.168.11.0/30 | edge S0/3/0: 192.168.11.1; ISP S0/3/0: 192.168.11.2 |
+| Edge–ISP serial | 198.51.100.0/30 | edge S0/3/0: 198.51.100.1; ISP S0/3/0: 198.51.100.2 |
 | ISP client LAN | 192.168.13.0/24 | ISP Fa0/1: 192.168.13.1; WLC1: 192.168.13.2 |
 | Simulated external server | 203.0.113.0/24 | ISP Fa0/0: 203.0.113.1; server4: 203.0.113.2 |
-| HR private WLAN | 192.168.0.0/24 | Wireless Router0 LAN: 192.168.0.1; WAN observed 10.10.0.226/27 |
-| ISP private WLAN | 192.168.0.0/24 | Wireless Router1 LAN: 192.168.0.1; WAN uses ISP DHCP |
+| HR WLAN | 10.10.0.224/27 | Wireless Router0 LAN Ethernet1 bridge; clients use gateway 10.10.0.225 |
+| ISP WLAN through WRT | 192.168.13.0/24 | Wireless Router1 LAN Ethernet1 bridge; clients use gateway 192.168.13.1 |
 
-The two private /24s are isolated behind separate NAT routers. These networks are outside the corporate /23 totals. The ISP is simulated, not real Internet access.
+The WRT DHCP servers are disabled and their Internet ports are no longer uplinks. Their previous 192.168.0.0/24 client networks are historical. HR WLAN is already counted in the corporate HR allocation; the ISP subnet is outside the corporate /23 totals. Existing WRT management settings are separate from client addressing and should not be assumed reachable from every subnet. Router0's configured PAT address is 198.51.100.1. The WAN and external-server addresses are TEST-NET documentation ranges representing the public side of this lab, not real Internet allocations. The previous 192.168.11.0/30 WAN appears only in historical evidence; consult the lab notes for post-migration traffic evidence and final save status.
 
 ## Static services and management
 
@@ -50,7 +50,7 @@ The two private /24s are isolated behind separate NAT routers. These networks ar
 | WLC0 | 10.10.0.190/26 | Gateway 10.10.0.129; Corp-Admin; excluded from Admin DHCP |
 | WLC1 | 192.168.13.2/24 | Gateway 192.168.13.1; ISP-Managed |
 
-West supplies Engineering/Admin/HR-uplink DHCP; east supplies Finance/IT; ISP supplies 192.168.13.0/24. Gateways are excluded, Admin also excludes .190, and ISP excludes .1–.9. Client DNS is 10.10.1.66. Private WLAN clients use their respective NAT router's DHCP. See [observed leases](../packet-tracer/README.md); leases can change.
+West supplies Engineering/Admin/HR DHCP; east supplies Finance/IT; ISP supplies 192.168.13.0/24. Gateways are excluded, Admin also excludes .190, and ISP excludes .1–.9. Client DNS is 10.10.1.66. The bridge clients use these upstream DHCP services. Last observed leases were Laptop4 10.10.0.227/27, Laptop5 10.10.0.228/27 and Laptop8 192.168.13.11/24. Laptop8's earlier .15 lease was stale after reopening; read current `ipconfig` before testing. See [verification notes](../packet-tracer/README.md); DHCP addresses are not immutable device identities.
 
 ## Method and allocation totals
 

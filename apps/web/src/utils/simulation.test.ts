@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { findPath, layoutDevices } from './simulation';
-import type { Link, NetworkDesign } from '@/types';
+import type { Device, Link } from '@/types';
 
 const links: Link[] = [['a', 'R1', 'R2'], ['b', 'R2', 'R3']].map(([linkId, sourceDeviceId, targetDeviceId]) => ({ linkId, sourceDeviceId, targetDeviceId, sourceInterface: '', targetInterface: '', networkCidr: '', medium: 'serial' }));
 describe('Simulation reachability', () => {
   it('places routers and attached switches consistently without overlapping', () => {
-    const design = { devices: [{ deviceId: 'R1', hostname: 'R1', type: 'router' }, { deviceId: 'R2', hostname: 'R2', type: 'router' }, { deviceId: 'S1', hostname: 'S1', type: 'switch' }], links: [{ ...links[0], sourceDeviceId: 'R1', targetDeviceId: 'S1' }] } as NetworkDesign;
-    expect(layoutDevices(design).map((node) => node.position)).toEqual([{ x: 0, y: 50 }, { x: 320, y: 50 }, { x: 0, y: 240 }]);
+    const devices: Device[] = [{ deviceId: 'R1', hostname: 'R1', type: 'router' }, { deviceId: 'R2', hostname: 'R2', type: 'router' }, { deviceId: 'S1', hostname: 'S1', type: 'switch' }];
+    expect(layoutDevices(devices, [{ ...links[0], sourceDeviceId: 'R1', targetDeviceId: 'S1' }]).map((node) => node.position)).toEqual([{ x: 0, y: 50 }, { x: 320, y: 50 }, { x: 0, y: 240 }]);
   });
   it('finds forward, reverse and local routes', () => {
     expect(findPath(links, 'R1', 'R3')).toEqual(['a', 'b']);

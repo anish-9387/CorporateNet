@@ -3,13 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const navigation = [
   { path: '/', label: 'Overview', icon: HomeIcon },
-  { path: '/simulation', label: 'Present Project', icon: TopologyIcon },
-  { path: '/topology', label: 'Topology', icon: TopologyIcon },
+  { path: '/simulation', label: 'Guided Simulation', icon: TopologyIcon },
+  { path: '/topology', label: 'Topology Explorer', icon: TopologyIcon },
+  { path: '/device-guide', label: 'Device Guide', icon: DeviceIcon },
   { path: '/vlsm', label: 'VLSM Studio', icon: VLSMIcon },
-  { path: '/routing', label: 'Routing Lab', icon: RoutingIcon },
-  { path: '/diagnostics', label: 'Diagnostics', icon: DiagnosticsIcon },
-  { path: '/scenarios', label: 'Failure Scenarios', icon: ScenarioIcon },
-  { path: '/reports', label: 'Reports', icon: ReportIcon },
+  { path: '/architecture', label: 'Architecture', icon: ArchitectureIcon },
 ] as const;
 
 function HomeIcon({ className }: { className?: string }) {
@@ -28,6 +26,14 @@ function TopologyIcon({ className }: { className?: string }) {
   );
 }
 
+function DeviceIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
 function VLSMIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -36,34 +42,10 @@ function VLSMIcon({ className }: { className?: string }) {
   );
 }
 
-function RoutingIcon({ className }: { className?: string }) {
+function ArchitectureIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-  );
-}
-
-function DiagnosticsIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  );
-}
-
-function ScenarioIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-    </svg>
-  );
-}
-
-function ReportIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
     </svg>
   );
 }
@@ -75,7 +57,10 @@ export const Sidebar: React.FC = () => {
     <aside className="sidebar fixed inset-y-0 left-0 z-40 flex flex-col" aria-label="Main navigation">
       <div className="sidebar-brand">
         <span className="brand-mark" aria-hidden="true">C<span>n</span></span>
-        <div><span className="font-semibold text-lg text-slate-900">CorporateNet</span><p className="brand-caption">NETWORK INTELLIGENCE</p></div>
+        <div>
+          <span className="font-semibold text-lg text-slate-900">CorporateNet</span>
+          <p className="brand-caption">NETWORK INTELLIGENCE</p>
+        </div>
       </div>
       <nav className="flex-1 overflow-y-auto py-4 px-3" aria-label="Sidebar navigation">
         <p className="nav-caption">WORKSPACE</p>
@@ -109,7 +94,7 @@ export const Sidebar: React.FC = () => {
       <div className="sidebar-footer">
         <p className="font-medium text-slate-800">Designed to understand.</p>
         <p className="text-xs text-slate-500 mt-1">VLSM · OSPF · Connectivity</p>
-        <span className="text-xs text-slate-400 block mt-4">CorporateNet / 1.0</span>
+        <span className="text-xs text-slate-400 block mt-4">CorporateNet / 1.0 (Frontend Only)</span>
       </div>
     </aside>
   );
