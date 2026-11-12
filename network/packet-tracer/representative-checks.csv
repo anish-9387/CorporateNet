@@ -1,0 +1,14 @@
+source,destination,status,source_ip,destination_ip,method,evidence
+server1,pc3,PASS,10.10.1.66,10.10.0.196,CLI ping,2026-11-07: 4 sent/4 received; min0 avg8 max16ms
+server1,laptop6,PASS,10.10.1.66,,Packet Tracer Simple PDU,Fresh ICMP Simple PDU reported Successful.
+sw3,sw0,PASS,192.168.13.14,10.10.0.137,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; DHCP SVI + gateway configured; write memory OK
+laptop9,server1,PASS,192.168.13.13,10.10.1.66,CLI ping,2026-11-07: 4 sent/4 received; server2 passed on repeat after one initial timeout
+laptop9,server2,PASS,192.168.13.13,10.10.1.67,CLI ping,2026-11-07: 4 sent/4 received; server2 passed on repeat after one initial timeout
+laptop9,server3,PASS,192.168.13.13,10.10.1.68,CLI ping,2026-11-07: 4 sent/4 received; server2 passed on repeat after one initial timeout
+laptop9,server4,PASS,192.168.13.13,203.0.113.2,CLI ping,2026-11-07: 4 sent/4 received; server2 passed on repeat after one initial timeout
+sw0,server1,PASS,10.10.0.137,10.10.1.66,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; SVI DHCP + default gateway configured; write memory OK
+sw1,sw0,PASS,10.10.0.4,10.10.0.137,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; SVI DHCP + default gateway configured; write memory OK
+sw2,server1,PASS,10.10.0.228,10.10.1.66,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; SVI DHCP + default gateway configured; write memory OK
+sw5,server1,PASS,10.10.0.197,10.10.1.66,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; DHCP SVI + gateway configured; write memory OK
+sw6,server1,PASS,10.10.1.5,10.10.1.66,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; DHCP SVI + gateway configured; write memory OK
+sw7,server1,PASS,10.10.0.198,10.10.1.66,IOS ping,2026-11-07: 5/5 on repeat after first ARP timeout; DHCP SVI + gateway configured; write memory OK

@@ -2,15 +2,15 @@
   "name": "corporatenet",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@11.13.0",
   "scripts": {
-    "dev": "cd apps/web && npm run dev",
-    "build": "cd apps/web && npm run build",
-    "preview": "cd apps/web && npm run preview",
-    "test": "cd apps/web && npm run test",
-    "lint": "cd apps/web && npm run lint"
+    "dev": "pnpm --dir web dev",
+    "build": "pnpm --dir web build",
+    "preview": "pnpm --dir web preview",
+    "test": "pnpm --dir web test",
+    "lint": "pnpm --dir web lint"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   }
 }

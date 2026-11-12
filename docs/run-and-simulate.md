@@ -1,13 +1,13 @@
-# Run and demonstrate CorporateNet
+# Run and demonstrate Scalable Corporate Network
 
 ## Browser demonstration
 
-Requirements: Node.js 20+ and an initial Internet connection for dependency installation.
+Requirements: Node.js 22.13+, pnpm 11.13 (pinned in package.json), and an initial Internet connection for dependency installation.
 
 ```powershell
 cd "D:\CODING\Web Developing\CorporateNet"
-corepack pnpm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open **http://localhost:5173/simulation** and select **Present → Simulate**. The ten stages cover VLSM, DHCP request/response, OSPF, DNS, HTTP, simulated ISP traffic, a server-link failure, and recovery.
@@ -48,18 +48,18 @@ After installation, restart Codex so the tools load. Restart Packet Tracer and a
 ## Build and verification
 
 ```powershell
-npm run build
-npm test
-npm run preview
+pnpm lint
+pnpm build
+pnpm test
+pnpm preview
 ```
 
-Open the preview URL and exercise `/`, `/simulation`, `/topology`, `/device-guide`, `/vlsm`, and `/architecture`. The automated suite checks topology integrity, wireless-link classification, VLSM allocation, path finding, layout, and common buttons.
+Open the preview URL and exercise `/`, `/simulation`, `/topology`, `/device-guide`, `/vlsm`, and `/architecture`. The automated suite checks topology integrity, documented gateways, wireless links, all 231 browser graph pairs, demonstration routes, VLSM input validation and free blocks, path finding, layout, and common buttons. Browser graph checks are not native ICMP tests. See the [native audit](../network/packet-tracer/connectivity-audit-2026-11-07.md) for the recorded Packet Tracer results.
 
 ## Troubleshooting
 
 | Symptom | Action |
 |---|---|
-| MongoDB SRV error | Obsolete for this project. Use the frontend-only commands above; no MongoDB is used. |
 | Vite port is occupied | Open the alternate local URL printed by Vite. |
 | First Packet Tracer ping fails | Let ARP/routing converge, then retry and inspect the event list. |
 | Wireless client has `169.254.x.x` | Check SSID/security, AP/controller association, DHCP scope, VLAN, and gateway. |

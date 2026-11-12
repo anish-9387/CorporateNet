@@ -5,7 +5,7 @@
 | Artifact | Source of truth | Purpose | Runtime |
 |---|---|---|---|
 | Native network | `network/packet-tracer/Scalable_Corporate_Network_CN.pkt` | IOS configuration, protocol behavior, live packets, and evidence | Cisco Packet Tracer 9.0.1+ |
-| Browser companion | `apps/web/src/data/labData.ts` | Explain the same 43-device topology and illustrate packet paths | React/Vite in a browser |
+| Browser companion | `web/src/data/labData.ts` | Explain the same 43-device topology and illustrate packet paths | React/Vite in a browser |
 
 The repository is frontend-only. There is no API, database, server persistence, or second saved topology.
 
@@ -20,6 +20,12 @@ flowchart LR
 ```
 
 The browser does not control Packet Tracer. The separately installed local Packet Tracer MCP is an audit/configuration tool for the native application, not a website backend.
+
+## Native topology
+
+![Scalable Corporate Network in Packet Tracer](assets/scalable-corporate-network-topology.png)
+
+The core connects department distribution, shared servers and the ISP edge. Wireless users enter through access points.
 
 ## Network layers
 
@@ -44,7 +50,7 @@ OSPF process 1, area 0 router IDs:
 | servers | 4.4.4.4 |
 | edge | 5.5.5.5 |
 
-The ISP is outside corporate OSPF and uses static routing. Router0 translates eligible corporate traffic to `198.51.100.1` with PAT. TEST-NET addresses are documentation ranges, not public Internet service.
+The ISP is outside corporate OSPF and uses static routing. Router0 uses ACL 101 to translate corporate traffic to `203.0.113.0/24` to `198.51.100.1` with PAT. Corporate traffic to ISP clients `192.168.13.0/24` is exempt and remains routed. TEST-NET addresses are documentation ranges, not public Internet service.
 
 ## Wireless design
 
@@ -61,14 +67,14 @@ Stack: React 18, TypeScript, Vite 5, React Router, React Flow, and Tailwind/CSS.
 
 | Route | Behavior |
 |---|---|
-| `/` | Counts and addressing summary from local lab data |
+| `/` | Project introduction and addressing summary from local lab data |
 | `/simulation` | Ten narrated stages with animated packet hops |
 | `/topology` | Any-source/destination graph path and one-link failure illustration |
 | `/device-guide` | Searchable purpose, justification, interfaces, and neighbors |
 | `/vlsm` | Largest-first VLSM calculator running entirely in the browser |
 | `/architecture` | This design summarized in the UI |
 
-`labData.ts` contains devices, links, interfaces, positions, explanations, architecture text, VLSM logic, and demonstration stages. `utils/simulation.ts` contains the breadth-first path finder and fallback layout helper.
+`labData.ts` contains devices, links, interfaces, positions, explanations, VLSM logic, and demonstration stages. `utils/simulation.ts` contains the breadth-first path finder and fallback layout helper.
 
 Packet movement is illustrative: it does not model IOS forwarding tables, ARP timing, OSPF convergence/cost/ECMP, DHCP broadcast fan-out, TCP state, NAT internals, or CAPWAP.
 
@@ -78,11 +84,15 @@ Adding a department requires an available subnet, gateway/DHCP configuration, ac
 
 This educational design still has single points of failure at the core, edge, and each distribution block. Two server links demonstrate alternate reachability but do not provide full campus high availability. Production evolution would add redundant cores/edges, first-hop redundancy, port channels, routed access or resilient trunks, security policy, monitoring, and capacity measurements.
 
+## Recorded native results
+
+The audit completed 8 November 2026 recorded 231/231 unique pairs among 22 IP end devices passing after retries where needed. The native inventory had 43 network devices plus three power objects, and 49 native link entries; the browser has 43 devices and 43 diagram links. Ten FULL OSPF neighbour entries represent five adjacencies. The audit did not save in-memory state or test every application or separately initiated reverse flow.
+
 ## Validation
 
 ```powershell
-npm run build
-npm test
+pnpm build
+pnpm test
 ```
 
-Automated tests validate the browser data and algorithms. Native verification is recorded separately in `network/packet-tracer/connectivity-matrix.csv` and the lab guide. Do not infer native pair success solely from a browser graph path.
+Automated tests validate the browser data and algorithms. Native verification is recorded separately in `network/packet-tracer/connectivity-audit-2026-11-07.md` and the lab guide. Do not infer native pair success solely from a browser graph path.
