@@ -24,6 +24,8 @@ The website illustrates packet paths. Open [the Packet Tracer project](network/p
 
 ## Project files
 
+Open the [Packet Tracer evidence gallery](proofs/index.html) for current screenshots, or read the [evidence notes](proofs/README.md) for the tests and their scope.
+
 - `web/` — React frontend and simulation.
 - `network/` — Packet Tracer lab and addressing plan.
 - `docs/` — presentation notes, architecture and the native topology screenshot. The report is maintained outside this repository.

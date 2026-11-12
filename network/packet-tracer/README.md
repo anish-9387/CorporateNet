@@ -6,6 +6,8 @@ The recorded inventory contains **43 network devices and three power objects (46
 
 ## Recorded verification
 
+Follow-up on 12 November 2026: Laptop9 renewed `192.168.13.16/24` and reached both the corporate and external servers with 4/4 replies. The intranet and external HTTP pages now have distinct project titles, and both loaded by DNS name on PC3. All four visible native PDU rows completed successfully. The updated main `.pkt` was saved. See the [current evidence gallery](../../proofs/index.html) and [scope notes](../../proofs/README.md); this follow-up was a targeted retest, not another exhaustive pair sweep.
+
 The [audit completed on 8 November 2026](connectivity-audit-2026-11-07.md) recorded **231/231 unique end-device pairs passing**, with retries after initial loss where needed. Each ping checked an echo request and reply. Separately initiated reverse flows and every application were not exhaustively tested. Final recorded health was zero down links, five OSPF devices, ten FULL neighbour entries (five adjacencies), and no missing shared OSPF routes.
 
 These are dated results, not a fresh test on every reopen. The audit did not save its in-memory state. Read current DHCP leases and allow routing to settle before demonstrating the saved file.

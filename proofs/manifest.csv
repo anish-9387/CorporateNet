@@ -1,0 +1,35 @@
+id,status,note,image,log
+01-project,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,,logs/01-project.json
+03-ospf,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,,logs/03-ospf.json
+05-dhcp,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,,logs/05-dhcp.json
+06-pc3-dhcp,PASS,"DHCP lease, mask, gateway and DNS displayed.",screenshots/06-pc3-dhcp.png,logs/06-pc3-dhcp.json
+08-active-nat-table,OBSERVED,Four live ICMP mappings: 10.10.0.197 to 198.51.100.1 toward 203.0.113.2.,screenshots/08-active-nat-table.png,logs/08-active-nat-table.json
+09-external-repeat,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/09-external-repeat.png,logs/09-external-repeat.json
+10-intranet-ping,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/10-intranet-ping.png,logs/10-intranet-ping.json
+11-dns-resolution,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/11-dns-resolution.png,logs/11-dns-resolution.json
+12-core-ospf,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/12-core-ospf.png,logs/12-core-ospf.json
+13-edge-interfaces,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/13-edge-interfaces.png,logs/13-edge-interfaces.json
+14-west-dhcp,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/14-west-dhcp.png,logs/14-west-dhcp.json
+15-admin-wireless,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/15-admin-wireless.png,logs/15-admin-wireless.json
+16-hr-wireless,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/16-hr-wireless.png,logs/16-hr-wireless.json
+17-engineering-wired,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/17-engineering-wired.png,logs/17-engineering-wired.json
+18-it-wired,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/18-it-wired.png,logs/18-it-wired.json
+19-finance-to-admin-retry,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/19-finance-to-admin-retry.png,logs/19-finance-to-admin-retry.json
+25-isp-wrt-wireless,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/25-isp-wrt-wireless.png,logs/25-isp-wrt-wireless.json
+26-it-wireless,PASS,4/4 ICMP replies; 0 lost. Successful request/reply observation for this probe.,screenshots/26-it-wireless.png,logs/26-it-wireless.json
+27-core-routing-table,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/27-core-routing-table.png,logs/27-core-routing-table.json
+28-pat-statistics,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/28-pat-statistics.png,logs/28-pat-statistics.json
+30-isp-return-route,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/30-isp-return-route.png,logs/30-isp-return-route.json
+31-nat-acl,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,screenshots/31-nat-acl.png,logs/31-nat-acl.json
+topology,OBSERVED,Recorded device state; not a standalone end-to-end delivery test.,,logs/topology.json
+35-laptop9-intranet-pass,PASS,"Fresh retest: 4/4 ICMP replies, zero loss.",screenshots/35-laptop9-intranet-pass.png,logs/35-laptop9-intranet-pass.json
+36-laptop9-dhcp-retest,PASS,"DHCP renewed: 192.168.13.16/24, gateway 192.168.13.1, DNS 10.10.1.66.",screenshots/36-laptop9-dhcp-retest.png,logs/36-laptop9-dhcp-retest.json
+37-laptop9-external-pass,PASS,"Fresh retest: 4/4 ICMP replies, zero loss.",screenshots/37-laptop9-external-pass.png,logs/37-laptop9-external-pass.json
+38-intranet-http-retest,PASS,Distinct project HTTP page loaded from http://intranet.corporate.test,screenshots/38-intranet-http-retest.png,logs/38-intranet-http-retest.json
+39-external-http-retest,PASS,Distinct project HTTP page loaded from http://www.isp.test,screenshots/39-external-http-retest.png,logs/39-external-http-retest.json
+40-server3-finance-wireless-retest,PASS,"Fresh retest: 4/4 ICMP replies, zero loss.",screenshots/40-server3-finance-wireless-retest.png,logs/40-server3-finance-wireless-retest.json
+41-health-retest,OBSERVED,Zero down links. Remaining warnings are WLC internal address representations and six unaddressed WLC/WRT forwarding ports; no missing Laptop9 lease.,,logs/41-health-retest.json
+42-routes-retest,OBSERVED,No missing shared routes in final readback.,,logs/42-routes-retest.json
+44-saved-project,OBSERVED,Verified project filename after saving the tested changes.,,logs/44-saved-project.json
+43-pdu-retest,PASS,"Native PDU list shows all four rows Successful, including server3 to Laptop7 and PC3 to server2.",screenshots/43-pdu-retest.png,logs/43-pdu-retest.json
+45-final-topology,OBSERVED,Final topology with Laptop9 visibly associated to the ISP access point.,screenshots/45-final-topology.png,logs/44-saved-project.json
